@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { storage } from '../utils/storage';
 
-// Temporarily hardcoding to bypass cache issues
-const API_URL = 'http://192.168.0.116:3000';
-console.log('[API Client] FORCED Base URL:', API_URL);
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+console.log('[API Client] Initialized with Base URL:', API_URL);
 
 export const apiClient = axios.create({
   baseURL: API_URL,
