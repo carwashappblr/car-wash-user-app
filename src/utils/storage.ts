@@ -15,6 +15,10 @@ export const storage = {
   },
   setTokens: async (accessToken: string, refreshToken: string) => {
     try {
+      if (!accessToken || !refreshToken) {
+        console.warn('Storage: Accessing setTokens with missing tokens. Use removeTokens to clear.');
+        return;
+      }
       await AsyncStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
       await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     } catch (e) {
