@@ -3,34 +3,45 @@ import { jwtDecode } from 'jwt-decode';
 import { storage } from '../utils/storage';
 import { apiClient, setLogoutCallback } from '../api/client';
 
+// Backend emits 'WORKER' for machine role (Role.WORKER in Prisma enum)
+// We keep 'WORKER' as the canonical role string to match the JWT
 export type UserRole = 'USER' | 'ADMIN' | 'WORKER';
 
-export type User = {
+export const isMachineRole = (role?: UserRole | null) => role === 'WORKER';
+export const isUserRole = (role?: UserRole | null) => role === 'USER' || role === 'ADMIN';
+
+export type AuthEntityType = 'user' | 'machine';
+
+export type AuthUser = {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   phone?: string;
-  role?: UserRole;
+  role: UserRole;
+  type: AuthEntityType;
 };
 
 interface DecodedToken {
-  id: string;
+  sub: string;
   email: string;
   role: UserRole;
+  type: AuthEntityType;
   exp: number;
 }
 
 type AuthState = {
-  user: User | null;
+  user: AuthUser | null;
   isLoading: boolean;
-  token: string | null; // Keep token in state to drive navigation logic
+  token: string | null;
+  role: UserRole | null;
 };
 
 type AuthContextType = AuthState & {
   login: (email: string, password: string) => Promise<void>;
+  machineLogin: (email: string, password: string) => Promise<void>;
   register: (payload: any) => Promise<void>;
   logout: () => Promise<void>;
-  setUser: (u: User) => void;
+  setUser: (u: AuthUser) => void;
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,10 +51,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user: null,
     isLoading: true,
     token: null,
+    role: null,
   });
 
   useEffect(() => {
-    // Setup logout callback for the 401 interceptor
     setLogoutCallback(logout);
     bootstrapAsync();
   }, []);
@@ -56,45 +67,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const decoded = jwtDecode<DecodedToken>(accessToken);
         const currentTime = Date.now() / 1000;
 
+        // Token expired — attempt a request to trigger the interceptor refresh
         if (decoded.exp < currentTime) {
-          console.log('[Auth] Token expired, attempting silent bootstrap refresh...');
-          // The apiClient interceptor will handle the actual refresh logic
-          // if we make a request now, or we can just let it fail naturally.
-          // Better: try to fetch profile, which triggers the interceptor refresh.
+          console.log('[Auth] Token expired on boot — will refresh via interceptor');
         }
 
-        // fetch user profile from /users/me to sync full user info
+        const role = decoded.role;
+        const type = decoded.type;
+
+        if (type === 'machine') {
+          // Machines don't have a /users/me profile endpoint
+          const machineUser: AuthUser = {
+            id: decoded.sub,
+            email: decoded.email,
+            name: `Machine (${decoded.email})`,
+            role,
+            type: 'machine',
+          };
+          setState({ user: machineUser, isLoading: false, token: accessToken, role });
+          return;
+        }
+
+        // Fetch full user profile
         const res = await apiClient.get('/users/me');
-        setState({ 
-          user: res.data, 
-          isLoading: false, 
-          token: accessToken 
-        });
+        const profileUser: AuthUser = {
+          ...res.data,
+          role,
+          type: 'user',
+        };
+        setState({ user: profileUser, isLoading: false, token: accessToken, role });
         return;
       }
     } catch (e) {
       console.log('[Auth] Bootstrap failed or no token', e);
-      // If profile fetch fails (even after refresh attempt), we clear
       await storage.removeTokens();
     }
-    setState({ user: null, isLoading: false, token: null });
+    setState({ user: null, isLoading: false, token: null, role: null });
   };
 
   const login = async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
-      console.log("Reached /auth/login");
       const res = await apiClient.post('/auth/login', { email, password });
-      const { accessToken, refreshToken, user } = res.data;
+      const { accessToken, refreshToken } = res.data;
       await storage.setTokens(accessToken, refreshToken);
 
-      if (!user) {
-        // Fetch user info from root level if not returned by login
-        const profileRes = await apiClient.get('/users/me');
-        setState({ user: profileRes.data, token: accessToken, isLoading: false });
-      } else {
-        setState({ user, token: accessToken, isLoading: false });
-      }
+      const decoded = jwtDecode<DecodedToken>(accessToken);
+      const profileRes = await apiClient.get('/users/me');
+
+      const user: AuthUser = {
+        ...profileRes.data,
+        role: decoded.role,
+        type: 'user',
+      };
+
+      setState({ user, token: accessToken, isLoading: false, role: decoded.role });
+    } catch (e) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw e;
+    }
+  };
+
+  const machineLogin = async (email: string, password: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const res = await apiClient.post('/auth/machine/login', { email, password });
+      const { accessToken, refreshToken } = res.data;
+      await storage.setTokens(accessToken, refreshToken);
+
+      const decoded = jwtDecode<DecodedToken>(accessToken);
+
+      const machineUser: AuthUser = {
+        id: decoded.sub,
+        email: decoded.email,
+        name: `Machine (${decoded.email})`,
+        role: decoded.role, // 'WORKER'
+        type: 'machine',
+      };
+
+      setState({
+        user: machineUser,
+        token: accessToken,
+        isLoading: false,
+        role: decoded.role,
+      });
     } catch (e) {
       setState((prev) => ({ ...prev, isLoading: false }));
       throw e;
@@ -104,27 +160,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (payload: any) => {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
-      const res = await apiClient.post('/auth/register', payload);
-
-      // Check if backend returned tokens automatically after registration
-      if (res.data && res.data.accessToken) {
-        const { accessToken, refreshToken, user } = res.data;
-        await storage.setTokens(accessToken, refreshToken);
-
-        if (!user) {
-          const profileRes = await apiClient.get('/users/me');
-          setState({ user: profileRes.data, token: accessToken, isLoading: false });
-        } else {
-          setState({ user, token: accessToken, isLoading: false });
-        }
+      await apiClient.post('/auth/register', payload);
+      // Register doesn't return tokens — follow up with login
+      if (payload.email && payload.password) {
+        await login(payload.email, payload.password);
       } else {
-        // Otherwise, login explicitly using the payload details
-        // Assuming payload has email and password
-        if (payload.email && payload.password) {
-          await login(payload.email, payload.password);
-        } else {
-          setState((prev) => ({ ...prev, isLoading: false }));
-        }
+        setState((prev) => ({ ...prev, isLoading: false }));
       }
     } catch (e) {
       setState((prev) => ({ ...prev, isLoading: false }));
@@ -132,18 +173,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-
   const logout = async () => {
     await storage.removeTokens();
-    setState({ user: null, token: null, isLoading: false });
+    setState({ user: null, token: null, isLoading: false, role: null });
   };
 
-  const setUser = (user: User) => {
+  const setUser = (user: AuthUser) => {
     setState((prev) => ({ ...prev, user }));
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ ...state, login, machineLogin, register, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

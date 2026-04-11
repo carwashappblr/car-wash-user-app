@@ -1,11 +1,13 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 
+// ─── Auth Stack ───────────────────────────────────────────────────────────────
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
 };
 
-export type MainTabsParamList = {
+// ─── User Stack ───────────────────────────────────────────────────────────────
+export type UserTabsParamList = {
   Home: undefined;
   MyCars: undefined;
   BookWash: { carId?: string } | undefined;
@@ -13,7 +15,27 @@ export type MainTabsParamList = {
   Profile: undefined;
 };
 
+export type UserStackParamList = {
+  UserTabs: NavigatorScreenParams<UserTabsParamList>;
+  AddCar: undefined;
+};
+
+// ─── Machine Stack ────────────────────────────────────────────────────────────
+export type MachineTabsParamList = {
+  Dashboard: undefined;
+  MachineTasks: undefined;
+};
+
+export type MachineStackParamList = {
+  MachineTabs: NavigatorScreenParams<MachineTabsParamList>;
+};
+
+// ─── Root Stack ───────────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<MainTabsParamList>;
+  UserApp: NavigatorScreenParams<UserStackParamList>;
+  MachineApp: NavigatorScreenParams<MachineStackParamList>;
 };
+
+// Backward compat alias (used by existing MainTabs ref)
+export type MainTabsParamList = UserTabsParamList;
