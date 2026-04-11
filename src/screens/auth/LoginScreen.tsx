@@ -66,6 +66,8 @@ export const LoginScreen = ({ navigation }: Props) => {
 
   const onSubmit = async (data: any) => {
     try {
+      console.log("Login attempt");
+      
       if (mode === 'user') {
         await login(data.email, data.password);
       } else {
