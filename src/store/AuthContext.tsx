@@ -131,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const machineLogin = async (email: string, password: string) => {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
+      
       const res = await apiClient.post('/auth/machine/login', { email, password });
       const { accessToken, refreshToken } = res.data;
       await storage.setTokens(accessToken, refreshToken);
