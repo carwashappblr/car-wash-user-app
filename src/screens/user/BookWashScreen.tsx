@@ -125,7 +125,9 @@ export const BookWashScreen = () => {
             <Text style={styles.noCarText}>No cars registered. Add a car first.</Text>
           </Surface>
         ) : (
-          cars.map((car) => (
+          cars.map((car) => {
+            const displayModel = [car.make, car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
+            return (
             <TouchableOpacity
               key={car.id}
               style={[
@@ -151,7 +153,7 @@ export const BookWashScreen = () => {
                     {car.licensePlate}
                   </Text>
                   <Text style={styles.carModel}>
-                    {car.model} · {car.color}
+                    {displayModel} · {car.color}
                   </Text>
                 </View>
               </View>
@@ -159,7 +161,8 @@ export const BookWashScreen = () => {
                 <MaterialCommunityIcons name="check-circle" size={22} color="#1E40AF" />
               )}
             </TouchableOpacity>
-          ))
+            );
+          })
         )}
 
         {/* Step 2: Select Service */}

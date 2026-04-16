@@ -28,6 +28,8 @@ interface CarCardProps {
 }
 
 export const CarCard: React.FC<CarCardProps> = ({ car, onPress }) => {
+  const displayModel = [car.make, car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
+
   return (
     <Surface
       style={styles.card}
@@ -39,7 +41,7 @@ export const CarCard: React.FC<CarCardProps> = ({ car, onPress }) => {
       </View>
       <View style={styles.info}>
         <Text style={styles.plateText}>{car.licensePlate}</Text>
-        <Text style={styles.modelText}>{car.model}</Text>
+        <Text style={styles.modelText}>{displayModel}</Text>
         <View style={styles.colorRow}>
           <View
             style={[
