@@ -7,19 +7,20 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { Text, TextInput, Button, ActivityIndicator, Menu } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { useForm, Controller } from 'react-hook-form';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Controller, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ActivityIndicator, Button, Menu, Text, TextInput } from 'react-native-paper';
 
-import { carService, Community, Tower } from '../../services/carService';
+import { Community, Tower, carService } from '../../services/carService';
 import { UserStackParamList } from '../../navigation/types';
 
-type AddCarNavProp = NativeStackNavigationProp<UserStackParamList, 'AddCar'>;
-type AddCarFormValues = {
+type EditCarNavProp = NativeStackNavigationProp<UserStackParamList, 'EditCar'>;
+type EditCarRouteProp = NativeStackScreenProps<UserStackParamList, 'EditCar'>['route'];
+type EditCarFormValues = {
   communityId: string;
   towerId: string;
   make: string;
@@ -28,49 +29,6 @@ type AddCarFormValues = {
   color?: string;
   defaultSlotNumber?: string;
 };
-
-const getErrorMessage = (error: unknown): string => {
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (Array.isArray(error)) {
-    return error.map((item) => getErrorMessage(item)).join(', ');
-  }
-
-  if (error && typeof error === 'object') {
-    const record = error as Record<string, unknown>;
-
-    if ('message' in record) {
-      return getErrorMessage(record.message);
-    }
-
-    if ('error' in record) {
-      return getErrorMessage(record.error);
-    }
-
-    try {
-      return JSON.stringify(record);
-    } catch {
-      return 'Something went wrong. Please try again.';
-    }
-  }
-
-  return 'Something went wrong. Please try again.';
-};
-
-const schema: yup.ObjectSchema<AddCarFormValues> = yup.object({
-  communityId: yup.string().trim().required('Community is required'),
-  towerId: yup.string().trim().required('Tower is required'),
-  make: yup.string().trim().required('Car make is required'),
-  plateNumber: yup
-    .string()
-    .min(2, 'Enter a valid plate')
-    .required('Plate number is required'),
-  model: yup.string().required('Car model is required'),
-  color: yup.string().trim().optional(),
-  defaultSlotNumber: yup.string().trim().optional(),
-}).required();
 
 const COLOR_OPTIONS = [
   { label: 'White', value: 'White', hex: '#F1F5F9' },
@@ -83,12 +41,39 @@ const COLOR_OPTIONS = [
   { label: 'Yellow', value: 'Yellow', hex: '#FDE68A' },
 ];
 
-export const AddCarScreen = () => {
-  const navigation = useNavigation<AddCarNavProp>();
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (Array.isArray(error)) return error.map((item) => getErrorMessage(item)).join(', ');
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    if ('message' in record) return getErrorMessage(record.message);
+    if ('error' in record) return getErrorMessage(record.error);
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return 'Something went wrong. Please try again.';
+};
+
+const schema: yup.ObjectSchema<EditCarFormValues> = yup.object({
+  communityId: yup.string().trim().required('Community is required'),
+  towerId: yup.string().trim().required('Tower is required'),
+  make: yup.string().trim().required('Car make is required'),
+  plateNumber: yup.string().trim().min(2, 'Enter a valid plate').required('Plate number is required'),
+  model: yup.string().trim().required('Car model is required'),
+  color: yup.string().trim().optional(),
+  defaultSlotNumber: yup.string().trim().optional(),
+}).required();
+
+export const EditCarScreen = () => {
+  const navigation = useNavigation<EditCarNavProp>();
+  const route = useRoute<EditCarRouteProp>();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
-  const [loadingCommunities, setLoadingCommunities] = useState(true);
-  const [communityError, setCommunityError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [screenError, setScreenError] = useState<string | null>(null);
   const [communityMenuVisible, setCommunityMenuVisible] = useState(false);
   const [towerMenuVisible, setTowerMenuVisible] = useState(false);
 
@@ -96,10 +81,11 @@ export const AddCarScreen = () => {
     control,
     handleSubmit,
     clearErrors,
+    reset,
     setValue,
     watch,
     formState: { errors, isValid, isSubmitting },
-  } = useForm<AddCarFormValues>({
+  } = useForm<EditCarFormValues>({
     resolver: yupResolver(schema),
     mode: 'onChange',
     defaultValues: {
@@ -127,72 +113,106 @@ export const AddCarScreen = () => {
   );
 
   useEffect(() => {
-    const loadCommunities = async () => {
+    const loadData = async () => {
       try {
-        setCommunityError(null);
-        const response = await carService.getCommunities();
-        setCommunities(response.data);
+        setScreenError(null);
+        const [carsResponse, communitiesResponse] = await Promise.all([
+          carService.getCars(),
+          carService.getCommunities(),
+        ]);
+
+        const car = carsResponse.data.find((item) => item.id === route.params.carId);
+        if (!car) {
+          setScreenError('Car not found or you do not have access to edit it.');
+          return;
+        }
+
+        const community = communitiesResponse.data.find((item) =>
+          item.towers.some((tower) => tower.id === car.towerId)
+        );
+
+        setCommunities(communitiesResponse.data);
+        reset({
+          communityId: community?.id ?? '',
+          towerId: car.towerId ?? '',
+          make: car.make ?? '',
+          model: car.model ?? '',
+          plateNumber: car.plateNumber ?? car.licensePlate ?? '',
+          color: car.color ?? '',
+          defaultSlotNumber: car.defaultSlotNumber ?? '',
+        });
       } catch (e: any) {
-        setCommunityError(
-          getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load communities. Please try again.')
+        setScreenError(
+          getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load car details. Please try again.')
         );
       } finally {
-        setLoadingCommunities(false);
+        setLoading(false);
       }
     };
 
-    loadCommunities();
-  }, []);
+    loadData();
+  }, [reset, route.params.carId]);
 
-  const onSubmit = async (data: AddCarFormValues) => {
+  const onSubmit = async (data: EditCarFormValues) => {
     try {
       setSubmitError(null);
-      await carService.addCar({
+      const response = await carService.updateCar(route.params.carId, {
         towerId: data.towerId,
         make: data.make.trim(),
-        plateNumber: data.plateNumber.toUpperCase().trim(),
         model: data.model.trim(),
+        plateNumber: data.plateNumber.toUpperCase().trim(),
         color: data.color?.trim() || undefined,
         defaultSlotNumber: data.defaultSlotNumber?.toUpperCase().trim() || undefined,
       });
+
+      const updatedCar = response.data;
+      const community = communities.find((item) =>
+        item.towers.some((tower) => tower.id === updatedCar.towerId)
+      );
+
+      reset({
+        communityId: community?.id ?? data.communityId,
+        towerId: updatedCar.towerId ?? data.towerId,
+        make: updatedCar.make ?? data.make.trim(),
+        model: updatedCar.model ?? data.model.trim(),
+        plateNumber: updatedCar.plateNumber ?? updatedCar.licensePlate ?? data.plateNumber.toUpperCase().trim(),
+        color: updatedCar.color ?? data.color ?? '',
+        defaultSlotNumber: updatedCar.defaultSlotNumber ?? data.defaultSlotNumber ?? '',
+      });
       navigation.goBack();
     } catch (e: any) {
-      const msg = getErrorMessage(
-        e.response?.data ?? e.response?.data?.message ?? e.message ?? 'Failed to add car. Please try again.'
+      setSubmitError(
+        getErrorMessage(e.response?.data ?? e.response?.data?.message ?? e.message ?? 'Failed to update car.')
       );
-      setSubmitError(msg);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#1E40AF" />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Icon hero */}
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <MaterialCommunityIcons name="car-settings" size={48} color="#1E40AF" />
-          <Text style={styles.heroText}>Register your vehicle, choose its tower, and optionally add a default slot</Text>
+          <MaterialCommunityIcons name="car-cog" size={48} color="#1E40AF" />
+          <Text style={styles.heroText}>Update your car details, tower, and parking slot information</Text>
         </View>
 
-        {loadingCommunities ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color="#1E40AF" />
-            <Text style={styles.loadingText}>Loading communities...</Text>
-          </View>
-        ) : communityError ? (
+        {screenError && (
           <View style={styles.serverErrorBox}>
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
-            <Text style={styles.serverErrorText}>{communityError}</Text>
+            <Text style={styles.serverErrorText}>{screenError}</Text>
           </View>
-        ) : null}
+        )}
 
-        {/* Community */}
         <Text style={styles.fieldLabel}>Community *</Text>
         <Menu
           visible={communityMenuVisible}
@@ -200,22 +220,14 @@ export const AddCarScreen = () => {
           anchor={
             <TouchableOpacity
               activeOpacity={0.8}
-              style={[
-                styles.selectField,
-                errors.communityId && styles.selectFieldError,
-                loadingCommunities && styles.selectFieldDisabled,
-              ]}
-              onPress={() => {
-                if (!loadingCommunities && communities.length > 0) {
-                  setCommunityMenuVisible(true);
-                }
-              }}
-              disabled={loadingCommunities || communities.length === 0}
+              style={[styles.selectField, errors.communityId && styles.selectFieldError]}
+              onPress={() => communities.length > 0 && setCommunityMenuVisible(true)}
+              disabled={communities.length === 0}
             >
               <View style={styles.selectFieldLeft}>
                 <MaterialCommunityIcons name="home-city-outline" size={20} color="#64748B" />
                 <Text style={[styles.selectFieldText, !selectedCommunity && styles.placeholderText]}>
-                  {selectedCommunity?.name ?? (loadingCommunities ? 'Loading communities...' : 'Select a community')}
+                  {selectedCommunity?.name ?? 'Select a community'}
                 </Text>
               </View>
               <MaterialCommunityIcons name="chevron-down" size={20} color="#94A3B8" />
@@ -225,19 +237,18 @@ export const AddCarScreen = () => {
           {communities.map((community) => (
             <Menu.Item
               key={community.id}
+              title={community.name}
               onPress={() => {
                 setValue('communityId', community.id, { shouldValidate: true });
                 setValue('towerId', '', { shouldValidate: true });
                 clearErrors(['communityId', 'towerId']);
                 setCommunityMenuVisible(false);
               }}
-              title={community.name}
             />
           ))}
         </Menu>
         {errors.communityId && <Text style={styles.errorText}>{errors.communityId.message}</Text>}
 
-        {/* Tower */}
         <Text style={styles.fieldLabel}>Tower *</Text>
         <Menu
           visible={towerMenuVisible}
@@ -250,11 +261,7 @@ export const AddCarScreen = () => {
                 errors.towerId && styles.selectFieldError,
                 !selectedCommunity && styles.selectFieldDisabled,
               ]}
-              onPress={() => {
-                if (selectedCommunity && towers.length > 0) {
-                  setTowerMenuVisible(true);
-                }
-              }}
+              onPress={() => selectedCommunity && towers.length > 0 && setTowerMenuVisible(true)}
               disabled={!selectedCommunity || towers.length === 0}
             >
               <View style={styles.selectFieldLeft}>
@@ -272,18 +279,17 @@ export const AddCarScreen = () => {
           {towers.map((tower: Tower) => (
             <Menu.Item
               key={tower.id}
+              title={tower.name}
               onPress={() => {
                 setValue('towerId', tower.id, { shouldValidate: true });
                 clearErrors('towerId');
                 setTowerMenuVisible(false);
               }}
-              title={tower.name}
             />
           ))}
         </Menu>
         {errors.towerId && <Text style={styles.errorText}>{errors.towerId.message}</Text>}
 
-        {/* Make */}
         <Controller
           control={control}
           name="make"
@@ -303,7 +309,6 @@ export const AddCarScreen = () => {
         />
         {errors.make && <Text style={styles.errorText}>{errors.make.message}</Text>}
 
-        {/* Model */}
         <Controller
           control={control}
           name="model"
@@ -316,14 +321,13 @@ export const AddCarScreen = () => {
               value={value}
               error={!!errors.model}
               style={styles.input}
-              placeholder="e.g. Honda City, Maruti Swift"
+              placeholder="e.g. Corolla Altis"
               left={<TextInput.Icon icon="car-outline" />}
             />
           )}
         />
         {errors.model && <Text style={styles.errorText}>{errors.model.message}</Text>}
 
-        {/* Plate Number */}
         <Controller
           control={control}
           name="plateNumber"
@@ -332,7 +336,7 @@ export const AddCarScreen = () => {
               label="Plate Number *"
               mode="outlined"
               onBlur={onBlur}
-              onChangeText={(t) => onChange(t.toUpperCase())}
+              onChangeText={(text) => onChange(text.toUpperCase())}
               value={value}
               autoCapitalize="characters"
               error={!!errors.plateNumber}
@@ -344,25 +348,24 @@ export const AddCarScreen = () => {
         />
         {errors.plateNumber && <Text style={styles.errorText}>{errors.plateNumber.message}</Text>}
 
-        {/* Color Picker */}
         <Text style={styles.colorLabel}>Car Color</Text>
         <View style={styles.colorGrid}>
-          {COLOR_OPTIONS.map((c) => (
+          {COLOR_OPTIONS.map((color) => (
             <TouchableOpacity
-              key={c.value}
+              key={color.value}
               style={[
                 styles.colorChip,
-                { backgroundColor: c.hex },
-                selectedColor === c.value && styles.colorChipSelected,
+                { backgroundColor: color.hex },
+                selectedColor === color.value && styles.colorChipSelected,
               ]}
-              onPress={() => setValue('color', c.value, { shouldValidate: true })}
+              onPress={() => setValue('color', color.value, { shouldValidate: true })}
               activeOpacity={0.8}
             >
-              {selectedColor === c.value && (
+              {selectedColor === color.value && (
                 <MaterialCommunityIcons
                   name="check"
                   size={16}
-                  color={c.value === 'White' || c.value === 'Silver' || c.value === 'Yellow' ? '#1E293B' : '#FFFFFF'}
+                  color={color.value === 'White' || color.value === 'Silver' || color.value === 'Yellow' ? '#1E293B' : '#FFFFFF'}
                 />
               )}
               <Text
@@ -370,17 +373,18 @@ export const AddCarScreen = () => {
                   styles.colorChipText,
                   {
                     color:
-                      c.value === 'White' || c.value === 'Silver' || c.value === 'Yellow'
+                      color.value === 'White' || color.value === 'Silver' || color.value === 'Yellow'
                         ? '#1E293B'
                         : '#FFFFFF',
                   },
                 ]}
               >
-                {c.label}
+                {color.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+
         <Controller
           control={control}
           name="color"
@@ -400,7 +404,6 @@ export const AddCarScreen = () => {
         />
         {errors.color && <Text style={styles.errorText}>{errors.color.message}</Text>}
 
-        {/* Default Slot */}
         <Controller
           control={control}
           name="defaultSlotNumber"
@@ -409,19 +412,18 @@ export const AddCarScreen = () => {
               label="Default Slot Number"
               mode="outlined"
               onBlur={onBlur}
-              onChangeText={(t) => onChange(t.toUpperCase())}
+              onChangeText={(text) => onChange(text.toUpperCase())}
               value={value}
               autoCapitalize="characters"
               error={!!errors.defaultSlotNumber}
               style={styles.input}
-              placeholder="e.g. 33F"
+              placeholder="e.g. 44F"
               left={<TextInput.Icon icon="map-marker-path" />}
             />
           )}
         />
         {errors.defaultSlotNumber && <Text style={styles.errorText}>{errors.defaultSlotNumber.message}</Text>}
 
-        {/* Server Error */}
         {submitError && (
           <View style={styles.serverErrorBox}>
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
@@ -433,22 +435,17 @@ export const AddCarScreen = () => {
           mode="contained"
           onPress={handleSubmit(onSubmit)}
           loading={isSubmitting}
-          disabled={!isValid || isSubmitting || loadingCommunities || !!communityError}
+          disabled={!isValid || isSubmitting || !!screenError}
           style={styles.button}
           contentStyle={styles.buttonContent}
           buttonColor="#1E40AF"
-          labelStyle={{ fontSize: 15, fontWeight: '700' }}
+          labelStyle={styles.buttonLabel}
         >
-          Add Car
+          Save Changes
         </Button>
 
-        <Button
-          mode="text"
-          onPress={() => navigation.goBack()}
-          style={{ marginTop: 4 }}
-          textColor="#64748B"
-        >
-          Cancel
+        <Button mode="text" onPress={() => navigation.goBack()} style={styles.cancelButton} textColor="#64748B">
+          Back
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -457,6 +454,7 @@ export const AddCarScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   scroll: { padding: 20, paddingBottom: 40 },
   hero: {
     alignItems: 'center',
@@ -471,20 +469,6 @@ const styles = StyleSheet.create({
     color: '#1E40AF',
     textAlign: 'center',
     lineHeight: 20,
-    fontWeight: '500',
-  },
-  loadingBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#475569',
     fontWeight: '500',
   },
   input: { marginBottom: 4, backgroundColor: '#FFFFFF' },
@@ -526,7 +510,12 @@ const styles = StyleSheet.create({
   selectFieldError: {
     borderColor: '#DC2626',
   },
-  errorText: { color: '#DC2626', fontSize: 12, marginBottom: 12, marginLeft: 4 },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 12,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
   colorLabel: {
     fontSize: 14,
     fontWeight: '700',
@@ -569,4 +558,6 @@ const styles = StyleSheet.create({
   serverErrorText: { color: '#DC2626', fontSize: 13, flex: 1, marginLeft: 4 },
   button: { borderRadius: 12, marginTop: 16 },
   buttonContent: { paddingVertical: 6 },
+  buttonLabel: { fontSize: 15, fontWeight: '700' },
+  cancelButton: { marginTop: 4 },
 });

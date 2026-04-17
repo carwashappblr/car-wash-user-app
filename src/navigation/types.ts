@@ -18,6 +18,7 @@ export type UserTabsParamList = {
 export type UserStackParamList = {
   UserTabs: NavigatorScreenParams<UserTabsParamList>;
   AddCar: undefined;
+  EditCar: { carId: string };
 };
 
 // ─── Machine Stack ────────────────────────────────────────────────────────────

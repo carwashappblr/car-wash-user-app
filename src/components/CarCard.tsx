@@ -29,6 +29,8 @@ interface CarCardProps {
 
 export const CarCard: React.FC<CarCardProps> = ({ car, onPress }) => {
   const displayModel = [car.make, car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
+  const displayColor = car.color?.trim() || 'Not set';
+  const slotLabel = car.defaultSlotNumber?.trim() || 'Not set';
 
   return (
     <Surface
@@ -53,7 +55,11 @@ export const CarCard: React.FC<CarCardProps> = ({ car, onPress }) => {
               },
             ]}
           />
-          <Text style={styles.colorText}>{car.color}</Text>
+          <Text style={styles.colorText}>{displayColor}</Text>
+        </View>
+        <View style={styles.slotRow}>
+          <MaterialCommunityIcons name="parking" size={14} color="#64748B" />
+          <Text style={styles.slotText}>Slot {slotLabel}</Text>
         </View>
       </View>
       <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E1" />
@@ -109,5 +115,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     textTransform: 'capitalize',
+  },
+  slotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  slotText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
   },
 });

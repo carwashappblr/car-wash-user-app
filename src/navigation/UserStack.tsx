@@ -8,6 +8,7 @@ import { UserStackParamList, UserTabsParamList } from './types';
 import { HomeScreen } from '../screens/user/HomeScreen';
 import { MyCarsScreen } from '../screens/user/MyCarsScreen';
 import { AddCarScreen } from '../screens/user/AddCarScreen';
+import { EditCarScreen } from '../screens/user/EditCarScreen';
 import { BookWashScreen } from '../screens/user/BookWashScreen';
 import { MyTasksScreen } from '../screens/user/MyTasksScreen';
 import { ProfileScreen } from '../screens/user/ProfileScreen';
@@ -74,6 +75,17 @@ export const UserStack = () => {
           presentation: 'modal',
           headerShown: true,
           title: 'Add New Car',
+          headerStyle: { backgroundColor: '#FFFFFF' },
+          headerTintColor: '#1E40AF',
+        }}
+      />
+      <Stack.Screen
+        name="EditCar"
+        component={EditCarScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Edit Car',
           headerStyle: { backgroundColor: '#FFFFFF' },
           headerTintColor: '#1E40AF',
         }}

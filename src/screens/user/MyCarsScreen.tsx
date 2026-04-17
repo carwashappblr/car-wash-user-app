@@ -83,7 +83,12 @@ export const MyCarsScreen = () => {
       <FlatList
         data={cars}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CarCard car={item} />}
+        renderItem={({ item }) => (
+          <CarCard
+            car={item}
+            onPress={() => navigation.navigate('EditCar', { carId: item.id })}
+          />
+        )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E40AF" />}
         ListEmptyComponent={
           <EmptyState
