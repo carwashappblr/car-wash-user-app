@@ -1,108 +1,185 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  StatusBar,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { Text, Button, ActivityIndicator, Surface } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { carService, Car } from '../../services/carService';
-import { taskService, ServiceType } from '../../services/taskService';
+import { subscriptionService, Subscription, SubscriptionPlan } from '../../services/subscriptionService';
+import { UserStackParamList, UserTabsParamList } from '../../navigation/types';
 
-const SERVICE_OPTIONS: { type: ServiceType; label: string; desc: string; price: string; icon: string }[] = [
-  {
-    type: 'BASIC',
-    label: 'Basic Wash',
-    desc: 'Exterior rinse & dry',
-    price: '₹199',
-    icon: 'water-outline',
-  },
-  {
-    type: 'PREMIUM',
-    label: 'Premium Wash',
-    desc: 'Exterior + interior clean',
-    price: '₹399',
-    icon: 'star-outline',
-  },
-  {
-    type: 'DELUXE',
-    label: 'Deluxe Detail',
-    desc: 'Full detail + wax & polish',
-    price: '₹799',
-    icon: 'diamond-outline',
-  },
-];
+type NavProp = NativeStackNavigationProp<UserStackParamList>;
+
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (Array.isArray(error)) return error.map((item) => getErrorMessage(item)).join(', ');
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    if ('message' in record) return getErrorMessage(record.message);
+    if ('error' in record) return getErrorMessage(record.error);
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return 'Something went wrong. Please try again.';
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Not scheduled yet';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not scheduled yet';
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+};
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount);
 
 export const BookWashScreen = () => {
+  const navigation = useNavigation<NavProp>();
+  const route = useRoute<any>();
   const [cars, setCars] = useState<Car[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
-  const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [loading, setLoading] = useState(true);
-  const [booking, setBooking] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [successSubscription, setSuccessSubscription] = useState<Subscription | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCars = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const res = await carService.getCars();
-      setCars(res.data);
-      if (res.data.length === 1) setSelectedCar(res.data[0]);
-    } catch (e) {
-      setError('Failed to load cars');
+      setError(null);
+      const [carsResponse, plansResponse] = await Promise.all([
+        carService.getCars(),
+        subscriptionService.getPlans(),
+      ]);
+
+      const activePlans = plansResponse.data.filter((plan) => plan.isActive);
+      setCars(carsResponse.data);
+      setPlans(activePlans);
+
+      const routeCarId = (route.params as UserTabsParamList['BookWash'])?.carId;
+      const preselectedCar = carsResponse.data.find((car) => car.id === routeCarId) ?? null;
+      if (preselectedCar) {
+        setSelectedCar(preselectedCar);
+      } else if (carsResponse.data.length === 1) {
+        setSelectedCar(carsResponse.data[0]);
+      }
+    } catch (e: any) {
+      setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load subscription details.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [route.params]);
 
-  useEffect(() => { loadCars(); }, [loadCars]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const handleBook = async () => {
-    if (!selectedCar || !selectedService) return;
+  const handleSubscribe = async () => {
+    if (!selectedCar || !selectedPlan) return;
+
     try {
-      setBooking(true);
+      setSubscribing(true);
       setError(null);
-      await taskService.createTask({ carId: selectedCar.id, serviceType: selectedService });
-      setSuccess(true);
+      const response = await subscriptionService.createSubscription({
+        planId: selectedPlan.id,
+        carId: selectedCar.id,
+      });
+      setSuccessSubscription(response.data);
+
+      try {
+        await subscriptionService.getMySubscriptions();
+      } catch {
+        // Best-effort refresh for future subscription history UI.
+      }
     } catch (e: any) {
-      const msg = e.response?.data?.message ?? 'Booking failed. Please try again.';
-      setError(Array.isArray(msg) ? msg.join(', ') : msg);
+      setError(getErrorMessage(e.response?.data ?? e.message ?? 'Subscription failed. Please try again.'));
     } finally {
-      setBooking(false);
+      setSubscribing(false);
     }
   };
 
   if (loading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#1E40AF" /></View>;
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#1E40AF" />
+      </View>
+    );
   }
 
-  if (success) {
+  if (successSubscription) {
+    const successPlan = successSubscription.plan ?? selectedPlan;
+    const successCar = successSubscription.car ?? selectedCar;
+    const carLabel = [successCar?.make, successCar?.model].filter(Boolean).join(' ').trim() || 'Your car';
+
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
             <MaterialCommunityIcons name="check-circle" size={72} color="#059669" />
           </View>
-          <Text style={styles.successTitle}>Booking Confirmed! 🎉</Text>
+          <Text style={styles.successTitle}>Subscription Active</Text>
           <Text style={styles.successSub}>
-            Your {selectedService?.toLowerCase()} wash for{' '}
-            <Text style={{ fontWeight: '800' }}>{selectedCar?.licensePlate}</Text> has been booked.
+            {successPlan?.name ?? 'Plan'} is now active for{' '}
+            <Text style={styles.successSubHighlight}>
+              {successCar?.plateNumber ?? successCar?.licensePlate ?? 'your car'}
+            </Text>
+            .
           </Text>
+
+          <Surface style={styles.successSummary} elevation={1}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Plan</Text>
+              <Text style={styles.summaryValue}>{successPlan?.name ?? '—'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Car</Text>
+              <Text style={styles.summaryValue}>
+                {carLabel} · {successCar?.plateNumber ?? successCar?.licensePlate ?? '—'}
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Washes Used</Text>
+              <Text style={styles.summaryValue}>{successSubscription.washesUsed}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Next Wash</Text>
+              <Text style={styles.summaryValue}>{formatDate(successSubscription.nextWashOn)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Starts</Text>
+              <Text style={styles.summaryValue}>{formatDate(successSubscription.startDate)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Ends</Text>
+              <Text style={styles.summaryValue}>{formatDate(successSubscription.endDate)}</Text>
+            </View>
+          </Surface>
+
           <Button
             mode="contained"
             buttonColor="#1E40AF"
-            style={{ borderRadius: 12, marginTop: 24, width: '100%' }}
+            style={styles.successButton}
             contentStyle={{ paddingVertical: 6 }}
             onPress={() => {
-              setSuccess(false);
+              setSuccessSubscription(null);
               setSelectedCar(cars.length === 1 ? cars[0] : null);
-              setSelectedService(null);
+              setSelectedPlan(null);
             }}
           >
-            Book Another Wash
+            Subscribe Another Car
           </Button>
         </View>
       </SafeAreaView>
@@ -113,99 +190,124 @@ export const BookWashScreen = () => {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>Book a Wash</Text>
+        <Text style={styles.pageTitle}>Subscriptions</Text>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Step 1: Select Car */}
-        <Text style={styles.stepTitle}>Step 1: Select Your Car</Text>
+        <Surface style={styles.infoBanner} elevation={1}>
+          <MaterialCommunityIcons name="credit-card-clock-outline" size={22} color="#1E40AF" />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Online payment will be added later.</Text>
+            <Text style={styles.infoSub}>
+              For now, subscriptions activate immediately after you choose a plan and car.
+            </Text>
+          </View>
+        </Surface>
+
+        <Text style={styles.stepTitle}>Step 1: Choose a Plan</Text>
+        {plans.length === 0 ? (
+          <Surface style={styles.emptyBanner} elevation={1}>
+            <MaterialCommunityIcons name="tag-off-outline" size={28} color="#94A3B8" />
+            <Text style={styles.emptyText}>No subscription plans are available right now.</Text>
+          </Surface>
+        ) : (
+          plans.map((plan) => (
+            <TouchableOpacity
+              key={plan.id}
+              style={[
+                styles.optionCard,
+                selectedPlan?.id === plan.id && styles.optionCardSelected,
+              ]}
+              onPress={() => setSelectedPlan(plan)}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.optionIconWrap,
+                  { backgroundColor: selectedPlan?.id === plan.id ? '#1E40AF' : '#EFF6FF' },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="calendar-star"
+                  size={24}
+                  color={selectedPlan?.id === plan.id ? '#FFFFFF' : '#1E40AF'}
+                />
+              </View>
+              <View style={styles.optionInfo}>
+                <Text style={[styles.optionTitle, selectedPlan?.id === plan.id && styles.optionTitleSelected]}>
+                  {plan.name}
+                </Text>
+                <Text style={styles.optionDesc}>{plan.description}</Text>
+                <Text style={styles.optionMeta}>
+                  {plan.washCount} washes · {plan.durationDays} days
+                </Text>
+              </View>
+              <Text style={[styles.optionPrice, selectedPlan?.id === plan.id && styles.optionTitleSelected]}>
+                {formatCurrency(plan.price)}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+
+        <Text style={styles.stepTitle}>Step 2: Select Your Car</Text>
         {cars.length === 0 ? (
-          <Surface style={styles.noCarBanner} elevation={1}>
+          <Surface style={styles.emptyBanner} elevation={1}>
             <MaterialCommunityIcons name="car-off" size={28} color="#94A3B8" />
-            <Text style={styles.noCarText}>No cars registered. Add a car first.</Text>
+            <View style={styles.emptyContent}>
+              <Text style={styles.emptyText}>No cars registered. Add a car first.</Text>
+              <Button
+                mode="text"
+                compact
+                onPress={() => navigation.navigate('AddCar')}
+                textColor="#1E40AF"
+                style={styles.addCarButton}
+              >
+                Add Car
+              </Button>
+            </View>
           </Surface>
         ) : (
           cars.map((car) => {
             const displayModel = [car.make, car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
             return (
-            <TouchableOpacity
-              key={car.id}
-              style={[
-                styles.carOption,
-                selectedCar?.id === car.id && styles.carOptionSelected,
-              ]}
-              onPress={() => setSelectedCar(car)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.carOptionLeft}>
-                <MaterialCommunityIcons
-                  name="car"
-                  size={24}
-                  color={selectedCar?.id === car.id ? '#1E40AF' : '#64748B'}
-                />
-                <View style={{ marginLeft: 12 }}>
-                  <Text
-                    style={[
-                      styles.carPlate,
-                      selectedCar?.id === car.id && { color: '#1E40AF' },
-                    ]}
-                  >
-                    {car.licensePlate}
+              <TouchableOpacity
+                key={car.id}
+                style={[
+                  styles.optionCard,
+                  selectedCar?.id === car.id && styles.optionCardSelected,
+                ]}
+                onPress={() => setSelectedCar(car)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.optionIconWrap,
+                    { backgroundColor: selectedCar?.id === car.id ? '#1E40AF' : '#EFF6FF' },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="car"
+                    size={24}
+                    color={selectedCar?.id === car.id ? '#FFFFFF' : '#1E40AF'}
+                  />
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={[styles.optionTitle, selectedCar?.id === car.id && styles.optionTitleSelected]}>
+                    {displayModel}
                   </Text>
-                  <Text style={styles.carModel}>
-                    {displayModel} · {car.color}
+                  <Text style={styles.optionDesc}>{car.licensePlate}</Text>
+                  <Text style={styles.optionMeta}>
+                    Slot: {car.defaultSlotNumber?.trim() || 'Not set'}
                   </Text>
                 </View>
-              </View>
-              {selectedCar?.id === car.id && (
-                <MaterialCommunityIcons name="check-circle" size={22} color="#1E40AF" />
-              )}
-            </TouchableOpacity>
+                {selectedCar?.id === car.id && (
+                  <MaterialCommunityIcons name="check-circle" size={22} color="#1E40AF" />
+                )}
+              </TouchableOpacity>
             );
           })
         )}
 
-        {/* Step 2: Select Service */}
-        <Text style={styles.stepTitle}>Step 2: Choose Service</Text>
-        {SERVICE_OPTIONS.map((svc) => (
-          <TouchableOpacity
-            key={svc.type}
-            style={[
-              styles.serviceOption,
-              selectedService === svc.type && styles.serviceOptionSelected,
-            ]}
-            onPress={() => setSelectedService(svc.type)}
-            activeOpacity={0.8}
-          >
-            <View style={[
-              styles.serviceIconWrap,
-              { backgroundColor: selectedService === svc.type ? '#1E40AF' : '#EFF6FF' },
-            ]}>
-              <MaterialCommunityIcons
-                name={svc.icon as any}
-                size={24}
-                color={selectedService === svc.type ? '#FFFFFF' : '#1E40AF'}
-              />
-            </View>
-            <View style={styles.serviceInfo}>
-              <Text style={[
-                styles.serviceLabel,
-                selectedService === svc.type && { color: '#1E40AF' },
-              ]}>
-                {svc.label}
-              </Text>
-              <Text style={styles.serviceDesc}>{svc.desc}</Text>
-            </View>
-            <Text style={[
-              styles.servicePrice,
-              selectedService === svc.type && { color: '#1E40AF' },
-            ]}>
-              {svc.price}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        {/* Error */}
         {error && (
           <View style={styles.errorBox}>
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
@@ -213,41 +315,65 @@ export const BookWashScreen = () => {
           </View>
         )}
 
-        {/* Summary + Book */}
-        {selectedCar && selectedService && (
+        {selectedCar && selectedPlan && (
           <Surface style={styles.summary} elevation={2}>
-            <Text style={styles.summaryTitle}>Booking Summary</Text>
+            <Text style={styles.summaryTitle}>Subscription Summary</Text>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Vehicle</Text>
-              <Text style={styles.summaryValue}>{selectedCar.licensePlate}</Text>
+              <Text style={styles.summaryLabel}>Plan</Text>
+              <Text style={styles.summaryValue}>{selectedPlan.name}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Service</Text>
-              <Text style={styles.summaryValue}>
-                {SERVICE_OPTIONS.find((s) => s.type === selectedService)?.label}
-              </Text>
+              <Text style={styles.summaryLabel}>Description</Text>
+              <Text style={styles.summaryValue}>{selectedPlan.description}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Price</Text>
-              <Text style={[styles.summaryValue, { color: '#059669', fontWeight: '800' }]}>
-                {SERVICE_OPTIONS.find((s) => s.type === selectedService)?.price}
+              <Text style={[styles.summaryValue, styles.summaryAccent]}>{formatCurrency(selectedPlan.price)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Washes per Month</Text>
+              <Text style={styles.summaryValue}>{selectedPlan.washCount}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Duration</Text>
+              <Text style={styles.summaryValue}>{selectedPlan.durationDays} days</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Car</Text>
+              <Text style={styles.summaryValue}>
+                {[selectedCar.make, selectedCar.model].filter(Boolean).join(' ').trim() || 'Vehicle'} · {selectedCar.licensePlate}
               </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Default Slot</Text>
+              <Text style={styles.summaryValue}>{selectedCar.defaultSlotNumber?.trim() || 'Not set'}</Text>
+            </View>
+            <View style={[styles.summaryRow, styles.summaryLastRow]}>
+              <Text style={styles.summaryLabel}>Payment</Text>
+              <Text style={styles.summaryValue}>Will be added later</Text>
             </View>
           </Surface>
         )}
 
         <Button
           mode="contained"
-          onPress={handleBook}
-          loading={booking}
-          disabled={!selectedCar || !selectedService || booking}
-          style={styles.bookBtn}
+          onPress={handleSubscribe}
+          loading={subscribing}
+          disabled={!selectedCar || !selectedPlan || subscribing || plans.length === 0 || cars.length === 0}
+          style={styles.primaryButton}
           buttonColor="#1E40AF"
-          contentStyle={styles.bookBtnContent}
-          labelStyle={{ fontSize: 16, fontWeight: '800' }}
+          contentStyle={styles.primaryButtonContent}
+          labelStyle={styles.primaryButtonLabel}
         >
-          Confirm Booking
+          Subscribe
         </Button>
+
+        <View style={styles.footerNote}>
+          <MaterialCommunityIcons name="information-outline" size={16} color="#64748B" />
+          <Text style={styles.footerNoteText}>
+            This layout is ready for a future payment step before final confirmation.
+          </Text>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -267,6 +393,19 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   pageTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A' },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 10,
+  },
+  infoContent: { flex: 1 },
+  infoTitle: { fontSize: 14, fontWeight: '700', color: '#1E3A8A' },
+  infoSub: { fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 18 },
   stepTitle: {
     fontSize: 15,
     fontWeight: '800',
@@ -275,36 +414,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  carOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-  },
-  carOptionSelected: {
-    borderColor: '#1E40AF',
-    backgroundColor: '#EFF6FF',
-  },
-  carOptionLeft: { flexDirection: 'row', alignItems: 'center' },
-  carPlate: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
-  carModel: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  noCarBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    padding: 16,
-    marginHorizontal: 16,
-    backgroundColor: '#F1F5F9',
-    gap: 10,
-  },
-  noCarText: { fontSize: 14, color: '#64748B', fontWeight: '600' },
-  serviceOption: {
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -316,21 +426,35 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     gap: 12,
   },
-  serviceOptionSelected: {
+  optionCardSelected: {
     borderColor: '#1E40AF',
     backgroundColor: '#EFF6FF',
   },
-  serviceIconWrap: {
+  optionIconWrap: {
     width: 48,
     height: 48,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  serviceInfo: { flex: 1 },
-  serviceLabel: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  serviceDesc: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  servicePrice: { fontSize: 16, fontWeight: '800', color: '#334155' },
+  optionInfo: { flex: 1 },
+  optionTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  optionTitleSelected: { color: '#1E40AF' },
+  optionDesc: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  optionMeta: { fontSize: 12, color: '#475569', marginTop: 6, fontWeight: '600' },
+  optionPrice: { fontSize: 16, fontWeight: '800', color: '#334155' },
+  emptyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    padding: 16,
+    marginHorizontal: 16,
+    backgroundColor: '#F1F5F9',
+    gap: 10,
+  },
+  emptyContent: { flex: 1 },
+  emptyText: { fontSize: 14, color: '#64748B', fontWeight: '600', flex: 1 },
+  addCarButton: { alignSelf: 'flex-start', marginTop: 6, marginLeft: -8 },
   summary: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -343,9 +467,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    gap: 12,
   },
-  summaryLabel: { fontSize: 14, color: '#64748B' },
-  summaryValue: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  summaryLastRow: { marginBottom: 0 },
+  summaryLabel: { fontSize: 14, color: '#64748B', flex: 1 },
+  summaryValue: { fontSize: 14, fontWeight: '700', color: '#0F172A', flex: 1, textAlign: 'right' },
+  summaryAccent: { color: '#059669' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,23 +484,48 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorText: { color: '#DC2626', fontSize: 13, flex: 1, marginLeft: 4 },
-  bookBtn: { marginHorizontal: 16, marginTop: 16, borderRadius: 14 },
-  bookBtnContent: { paddingVertical: 8 },
+  primaryButton: { marginHorizontal: 16, marginTop: 16, borderRadius: 14 },
+  primaryButtonContent: { paddingVertical: 6 },
+  primaryButtonLabel: { fontSize: 16, fontWeight: '800' },
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 4,
+  },
+  footerNoteText: { flex: 1, fontSize: 12, color: '#64748B', lineHeight: 18 },
   successContainer: {
     flex: 1,
+    padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
   },
   successIcon: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: '#ECFDF5',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
   },
-  successTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 12 },
-  successSub: { fontSize: 15, color: '#475569', textAlign: 'center', lineHeight: 22 },
+  successTitle: { fontSize: 28, fontWeight: '900', color: '#0F172A', textAlign: 'center' },
+  successSub: {
+    fontSize: 15,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 22,
+  },
+  successSubHighlight: { fontWeight: '800', color: '#0F172A' },
+  successSummary: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginTop: 24,
+  },
+  successButton: { borderRadius: 12, marginTop: 24, width: '100%' },
 });
