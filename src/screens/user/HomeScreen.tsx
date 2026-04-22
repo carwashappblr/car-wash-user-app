@@ -112,7 +112,7 @@ export const HomeScreen = () => {
           />
           <QuickAction
             icon="clipboard-list"
-            label="My Tasks"
+            label="My Washes"
             color="#FFF7ED"
             iconColor="#D97706"
             onPress={() => navigation.navigate('UserTabs', { screen: 'MyTasks' } as any)}

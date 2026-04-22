@@ -58,7 +58,7 @@ const UserTabs = () => {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="MyCars" component={MyCarsScreen} options={{ title: 'My Cars' }} />
       <Tab.Screen name="BookWash" component={BookWashScreen} options={{ title: 'Book Wash' }} />
-      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'My Tasks' }} />
+      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'My Washes' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );

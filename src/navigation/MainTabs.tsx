@@ -35,7 +35,7 @@ export const MainTabs = () => {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Dashboard' }} />
       <Tab.Screen name="MyCars" component={MyCarsScreen} options={{ title: 'My Cars' }} />
       <Tab.Screen name="BookWash" component={BookWashScreen} options={{ title: 'Book Wash' }} />
-      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'My Work' }} />
+      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'My Washes' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );

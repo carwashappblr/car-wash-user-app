@@ -1,13 +1,490 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Surface, Text, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const MyTasksScreen = () => {
-  const theme = useTheme();
+import { taskService, UserTask, TaskStatus } from '../../services/taskService';
+import { StatusBadge } from '../../components/StatusBadge';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatScheduledDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+// ── UserTaskCard ──────────────────────────────────────────────────────────────
+
+interface UserTaskCardProps {
+  task: UserTask;
+}
+
+const UserTaskCard: React.FC<UserTaskCardProps> = ({ task }) => {
+  const isSubscription = task.isSubscriptionTask;
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={{ textAlign: 'center', marginTop: 20 }}>Tasks List coming soon...</Text>
+    <Surface style={styles.card} elevation={1}>
+      {/* ── Header ── */}
+      <View style={styles.cardHeader}>
+        <View style={styles.carLabelRow}>
+          <MaterialCommunityIcons name="car" size={16} color="#1E40AF" />
+          <Text style={styles.makeModel} numberOfLines={1}>
+            {task.car.make} {task.car.model}
+          </Text>
+        </View>
+        <StatusBadge status={task.status} size="small" />
+      </View>
+
+      {/* ── Plate & Slot row ── */}
+      <View style={styles.metaRow}>
+        <View style={styles.metaItem}>
+          <MaterialCommunityIcons name="card-text-outline" size={13} color="#64748B" />
+          <Text style={styles.metaText}>{task.car.plateNumber}</Text>
+        </View>
+        <View style={styles.metaDot} />
+        <View style={styles.metaItem}>
+          <MaterialCommunityIcons name="parking" size={13} color="#64748B" />
+          <Text style={styles.metaText}>Slot {task.slotId}</Text>
+        </View>
+      </View>
+
+      {/* ── Date row ── */}
+      <View style={styles.footerRow}>
+        <View style={styles.metaItem}>
+          <MaterialCommunityIcons name="calendar-clock" size={14} color="#6366F1" />
+          <Text style={styles.dateText}>{formatScheduledDate(task.scheduledDate)}</Text>
+        </View>
+
+        {isSubscription && (
+          <View style={styles.subBadge}>
+            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <Text style={styles.subBadgeText}>Subscription</Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Notes ── */}
+      {task.notes ? (
+        <Text style={styles.notes} numberOfLines={2}>
+          {task.notes}
+        </Text>
+      ) : null}
+    </Surface>
+  );
+};
+
+// ── Skeleton Loader ───────────────────────────────────────────────────────────
+
+const SkeletonCard: React.FC = () => (
+  <Surface style={[styles.card, styles.skeleton]} elevation={1}>
+    <View style={[styles.skeletonLine, { width: '60%', height: 14, marginBottom: 10 }]} />
+    <View style={[styles.skeletonLine, { width: '40%', height: 11, marginBottom: 8 }]} />
+    <View style={[styles.skeletonLine, { width: '30%', height: 11 }]} />
+  </Surface>
+);
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+
+export const MyTasksScreen: React.FC = () => {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const [allTasks, setAllTasks] = useState<UserTask[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Guard against concurrent calls
+  const loadingRef = useRef(false);
+
+  const fetchTasks = useCallback(
+    async (page: number, isRefresh = false) => {
+      if (loadingRef.current) return;
+      if (!isRefresh && !hasNextPage && page > 1) return;
+
+      loadingRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const res = await taskService.getMyTasksPaginated(page);
+        const { data, pagination } = res.data;
+
+        if (page === 1) {
+          setAllTasks(data);
+        } else {
+          setAllTasks((prev) => [...prev, ...data]);
+        }
+
+        setHasNextPage(pagination.hasNextPage);
+        setCurrentPage(page);
+      } catch (e) {
+        setError('Could not load your washes. Please try again.');
+      } finally {
+        setIsLoading(false);
+        setIsFirstLoad(false);
+        setIsRefreshing(false);
+        loadingRef.current = false;
+      }
+    },
+    [hasNextPage]
+  );
+
+  // Initial load
+  useEffect(() => {
+    fetchTasks(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pull-to-refresh
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setHasNextPage(true); // reset before fetch so guard doesn't block
+    fetchTasks(1, true);
+  }, [fetchTasks]);
+
+  // Infinite scroll trigger
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isLoading) {
+      fetchTasks(currentPage + 1);
+    }
+  }, [hasNextPage, isLoading, currentPage, fetchTasks]);
+
+  // ── Render helpers ──────────────────────────────────────────────────────────
+
+  const renderItem = useCallback(
+    ({ item }: { item: UserTask }) => <UserTaskCard task={item} />,
+    []
+  );
+
+  const keyExtractor = useCallback((item: UserTask) => item.id, []);
+
+  const ListFooter = () => {
+    if (isLoading && !isFirstLoad) {
+      return (
+        <View style={styles.footer}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        </View>
+      );
+    }
+    if (!hasNextPage && allTasks.length > 0) {
+      return (
+        <View style={styles.footer}>
+          <MaterialCommunityIcons name="check-all" size={16} color="#94A3B8" />
+          <Text style={styles.footerText}>No more washes to show</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
+  const ListEmpty = () => {
+    if (isFirstLoad) return null; // skeleton handles this
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconWrap}>
+          <MaterialCommunityIcons name="car-wash" size={60} color="#CBD5E1" />
+        </View>
+        <Text style={styles.emptyTitle}>No washes yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Your upcoming and past car wash sessions will appear here.
+        </Text>
+      </View>
+    );
+  };
+
+  // ── Error banner (non-blocking) ─────────────────────────────────────────────
+  const ErrorBanner = () =>
+    error ? (
+      <View style={styles.errorBanner}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          onPress={() => fetchTasks(isFirstLoad ? 1 : currentPage)}
+          style={styles.retryBtn}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    ) : null;
+
+  // ── Full-screen skeleton on first load ──────────────────────────────────────
+  if (isFirstLoad && isLoading) {
+    return (
+      <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.headerBar}>
+          <Text style={styles.headerTitle}>My Washes</Text>
+        </View>
+        {[1, 2, 3, 4].map((k) => (
+          <SkeletonCard key={k} />
+        ))}
+      </View>
+    );
+  }
+
+  // ── Main render ─────────────────────────────────────────────────────────────
+  return (
+    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+      {/* Sticky header */}
+      <View style={[styles.headerBar, { paddingTop: insets.top > 0 ? 0 : 8 }]}>
+        <Text style={styles.headerTitle}>My Washes</Text>
+        {allTasks.length > 0 && (
+          <View style={styles.countChip}>
+            <Text style={styles.countText}>{allTasks.length}</Text>
+          </View>
+        )}
+      </View>
+
+      <ErrorBanner />
+
+      <FlatList
+        data={allTasks}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={ListFooter}
+        ListEmptyComponent={ListEmpty}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          allTasks.length === 0 && styles.listContentEmpty,
+          { paddingBottom: insets.bottom + 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 };
-const styles = StyleSheet.create({ container: { flex: 1 } });
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+
+  // Header
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    flex: 1,
+  },
+  countChip: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  countText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4F46E5',
+  },
+
+  // List
+  listContent: {
+    paddingTop: 4,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
+
+  // Task card
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  carLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  makeModel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: 0.2,
+    flexShrink: 1,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 6,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateText: {
+    fontSize: 13,
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  subBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  subBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  notes: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+    lineHeight: 17,
+  },
+
+  // Skeleton
+  skeleton: {
+    opacity: 0.6,
+  },
+  skeletonLine: {
+    backgroundColor: '#E2E8F0',
+    borderRadius: 6,
+  },
+
+  // Footer
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 6,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
+
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyIconWrap: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  // Error banner
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    marginHorizontal: 16,
+    marginBottom: 4,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#DC2626',
+  },
+  retryBtn: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  retryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+});
