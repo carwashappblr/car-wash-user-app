@@ -5,6 +5,7 @@ import {
   ScrollView,
   RefreshControl,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import { Text, Surface, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,7 +26,7 @@ const isToday = (dateStr: string) => {
 };
 
 export const MachineDashboardScreen = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -122,9 +123,15 @@ export const MachineDashboardScreen = () => {
               <Text style={styles.machineName}>{user?.email}</Text>
             </View>
           </View>
-          <View style={styles.onlineIndicator}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.onlineText}>Online</Text>
+          <View style={styles.headerActions}>
+            <View style={styles.onlineIndicator}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>Online</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="logout" size={16} color="#FDE68A" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -231,6 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerActions: { alignItems: 'flex-end', gap: 8 },
   machineIconWrap: {
     width: 48,
     height: 48,
@@ -262,6 +270,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   onlineText: { fontSize: 12, color: '#6EE7B7', fontWeight: '700' },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(248, 113, 113, 0.16)',
+  },
+  logoutText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FDE68A',
+  },
   dateBanner: {
     flexDirection: 'row',
     alignItems: 'center',

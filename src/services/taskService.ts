@@ -95,8 +95,20 @@ export const taskService = {
   getMyTasks: (): Promise<{ data: Task[] }> =>
     apiClient.get('/tasks'),
 
-  getPendingTowerTasks: (towerId: string): Promise<{ data: PendingTowerTask[] }> =>
-    apiClient.get(`/tasks/tower/${towerId}/pending`),
+  getPendingTowerTasks: async (): Promise<{ data: PendingTowerTask[] }> => {
+    console.log('[taskService] GET my tower pending tasks');
+    try {
+      const response = await apiClient.get<PendingTowerTask[]>('/tasks/my-tower/pending');
+      console.log('[taskService] GET my tower pending tasks success', { count: response.data.length });
+      return response;
+    } catch (error: any) {
+      console.log('[taskService] GET my tower pending tasks failed', {
+        status: error.response?.status,
+        message: error.response?.data?.message ?? error.message,
+      });
+      throw error;
+    }
+  },
 
   createTask: (payload: CreateTaskPayload): Promise<{ data: Task }> =>
     apiClient.post('/tasks', payload),

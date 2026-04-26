@@ -101,33 +101,25 @@ const PendingTaskCard = ({
 };
 
 export const MachineTasksScreen = () => {
-  const { user } = useAuth();
+  const { logout } = useAuth();
   const [tasks, setTasks] = useState<PendingTowerTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const towerId = user?.towerId;
-
   const loadTasks = useCallback(async () => {
-    if (!towerId) {
-      setTasks([]);
-      setError('This machine is not assigned to a tower yet.');
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
     try {
       setError(null);
-      const response = await taskService.getPendingTowerTasks(towerId);
+      const response = await taskService.getPendingTowerTasks();
       const sorted = [...response.data].sort(
         (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
       );
       setTasks(sorted);
     } catch (e: any) {
       if (e.response?.status === 403) {
-        setError('This machine is not allowed to access this tower');
+        setError('This machine is not assigned to a tower.');
+      } else if (e.response?.status === 404) {
+        setError('Machine not found. Please try again or contact support.');
       } else {
         setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load pending tasks.'));
       }
@@ -135,7 +127,7 @@ export const MachineTasksScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [towerId]);
+  }, []);
 
   useEffect(() => {
     loadTasks();
@@ -156,9 +148,8 @@ export const MachineTasksScreen = () => {
   }, []);
 
   const headerSubtitle = useMemo(() => {
-    if (!towerId) return 'Tower assignment required';
     return `${tasks.length} pending task${tasks.length !== 1 ? 's' : ''}`;
-  }, [tasks.length, towerId]);
+  }, [tasks.length]);
 
   if (loading) {
     return (
@@ -177,9 +168,14 @@ export const MachineTasksScreen = () => {
           <Text style={styles.pageTitle}>Pending Tasks</Text>
           <Text style={styles.pageCount}>{headerSubtitle}</Text>
         </View>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="refresh" size={18} color="#7C3AED" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="refresh" size={18} color="#7C3AED" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="logout" size={16} color="#7C3AED" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {error && (
@@ -199,12 +195,8 @@ export const MachineTasksScreen = () => {
         ListEmptyComponent={
           <EmptyState
             icon="clipboard-check-outline"
-            title={towerId ? 'No pending tasks for this tower' : 'Tower not assigned'}
-            subtitle={
-              towerId
-                ? 'New pending washes will appear here as they are assigned.'
-                : 'Please contact an administrator to assign this machine to a tower.'
-            }
+            title="No pending tasks for this tower"
+            subtitle="New pending washes will appear here as they are assigned."
           />
         }
         contentContainerStyle={tasks.length === 0 ? styles.emptyContent : styles.listContent}
@@ -227,6 +219,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   pageTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
   pageCount: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
   refreshButton: {
@@ -234,6 +231,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 12,
     backgroundColor: '#EDE9FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F5F3FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
