@@ -1,86 +1,164 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
+  Linking,
   RefreshControl,
   StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Text, Chip, ActivityIndicator } from 'react-native-paper';
+import { Surface, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { taskService, Task, TaskStatus } from '../../services/taskService';
-import { TaskCard } from '../../components/TaskCard';
+import { useAuth } from '../../store/AuthContext';
 import { EmptyState } from '../../components/EmptyState';
+import { PendingTowerTask, taskService } from '../../services/taskService';
 
-const FILTER_OPTIONS: { label: string; value: TaskStatus | 'ALL' }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Pending', value: 'PENDING' },
-  { label: 'In Progress', value: 'IN_PROGRESS' },
-  { label: 'Completed', value: 'COMPLETED' },
-];
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (Array.isArray(error)) return error.map((item) => getErrorMessage(item)).join(', ');
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    if ('message' in record) return getErrorMessage(record.message);
+    if ('error' in record) return getErrorMessage(record.error);
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return 'Something went wrong. Please try again.';
+};
+
+const formatScheduledDate = (value: string) =>
+  new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+const PendingTaskCard = ({
+  task,
+  onCall,
+}: {
+  task: PendingTowerTask;
+  onCall: (phone?: string | null) => void;
+}) => {
+  const title = [task.car.make, task.car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
+
+  return (
+    <Surface style={styles.card} elevation={1}>
+      <View style={styles.cardHeader}>
+        <View style={styles.titleRow}>
+          <MaterialCommunityIcons name="car" size={18} color="#7C3AED" />
+          <Text style={styles.titleText}>{title}</Text>
+        </View>
+        {task.isSubscriptionTask && (
+          <View style={styles.subscriptionBadge}>
+            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <Text style={styles.subscriptionBadgeText}>Subscription</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={styles.plateText}>{task.car.plateNumber}</Text>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="account-outline" size={14} color="#64748B" />
+        <Text style={styles.metaText}>
+          {task.user.name} {task.user.phone ? `• ${task.user.phone}` : ''}
+        </Text>
+      </View>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="parking" size={14} color="#64748B" />
+        <Text style={styles.metaText}>Slot {task.slotId}</Text>
+      </View>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="calendar-clock" size={14} color="#64748B" />
+        <Text style={styles.metaText}>Scheduled {formatScheduledDate(task.scheduledDate)}</Text>
+      </View>
+
+      {task.notes ? <Text style={styles.notesText}>{task.notes}</Text> : null}
+
+      {!!task.user.phone && (
+        <TouchableOpacity
+          style={styles.callButton}
+          onPress={() => onCall(task.user.phone)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="phone-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.callButtonText}>Call Customer</Text>
+        </TouchableOpacity>
+      )}
+    </Surface>
+  );
+};
 
 export const MachineTasksScreen = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<PendingTowerTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<TaskStatus | 'ALL'>('ALL');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const towerId = user?.towerId;
+
   const loadTasks = useCallback(async () => {
+    if (!towerId) {
+      setTasks([]);
+      setError('This machine is not assigned to a tower yet.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       setError(null);
-      const res = await taskService.getMyTasks();
-      setTasks(res.data);
+      const response = await taskService.getPendingTowerTasks(towerId);
+      const sorted = [...response.data].sort(
+        (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+      );
+      setTasks(sorted);
     } catch (e: any) {
-      setError('Failed to load tasks. Pull down to retry.');
-      console.error('[MachineTasksScreen]', e);
+      if (e.response?.status === 403) {
+        setError('This machine is not allowed to access this tower');
+      } else {
+        setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load pending tasks.'));
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  }, [towerId]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadTasks();
+  }, [loadTasks]);
+
+  const handleCall = useCallback(async (phone?: string | null) => {
+    if (!phone) return;
+    const url = `tel:${phone}`;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
     }
   }, []);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadTasks();
-    setRefreshing(false);
-  };
-
-  const handleStartTask = async (task: Task) => {
-    try {
-      setUpdatingId(task.id);
-      await taskService.updateTaskStatus(task.id, 'IN_PROGRESS');
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: 'IN_PROGRESS' } : t))
-      );
-    } catch (e: any) {
-      const msg = e.response?.data?.message ?? 'Failed to update task';
-      setError(Array.isArray(msg) ? msg.join(', ') : msg);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleCompleteTask = async (task: Task) => {
-    try {
-      setUpdatingId(task.id);
-      await taskService.updateTaskStatus(task.id, 'COMPLETED');
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: 'COMPLETED' } : t))
-      );
-    } catch (e: any) {
-      const msg = e.response?.data?.message ?? 'Failed to update task';
-      setError(Array.isArray(msg) ? msg.join(', ') : msg);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const filtered = filter === 'ALL' ? tasks : tasks.filter((t) => t.status === filter);
+  const headerSubtitle = useMemo(() => {
+    if (!towerId) return 'Tower assignment required';
+    return `${tasks.length} pending task${tasks.length !== 1 ? 's' : ''}`;
+  }, [tasks.length, towerId]);
 
   if (loading) {
     return (
@@ -94,75 +172,42 @@ export const MachineTasksScreen = () => {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
       <View style={styles.pageHeader}>
         <View>
-          <Text style={styles.pageTitle}>Task Queue</Text>
-          <Text style={styles.pageCount}>{tasks.length} assigned task{tasks.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.pageTitle}>Pending Tasks</Text>
+          <Text style={styles.pageCount}>{headerSubtitle}</Text>
         </View>
-        <View style={styles.headerBadge}>
-          <MaterialCommunityIcons name="robot" size={18} color="#7C3AED" />
-        </View>
-      </View>
-
-      {/* Filter chips */}
-      <View style={styles.filterRow}>
-        {FILTER_OPTIONS.map((opt) => {
-          const count =
-            opt.value === 'ALL'
-              ? tasks.length
-              : tasks.filter((t) => t.status === opt.value).length;
-          return (
-            <Chip
-              key={opt.value}
-              selected={filter === opt.value}
-              onPress={() => setFilter(opt.value)}
-              style={[styles.chip, filter === opt.value && styles.chipSelected]}
-              textStyle={[styles.chipText, filter === opt.value && styles.chipTextSelected]}
-              showSelectedCheck={false}
-            >
-              {opt.label} {count > 0 ? `(${count})` : ''}
-            </Chip>
-          );
-        })}
+        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="refresh" size={18} color="#7C3AED" />
+        </TouchableOpacity>
       </View>
 
       {error && (
         <View style={styles.errorBanner}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#DC2626" />
-          <Text style={{ color: '#DC2626', fontSize: 12, marginLeft: 6, flex: 1 }}>{error}</Text>
+          <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
       <FlatList
-        data={filtered}
+        data={tasks}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            showActions
-            onStartTask={handleStartTask}
-            onCompleteTask={handleCompleteTask}
-            isUpdating={updatingId === item.id}
-          />
-        )}
+        renderItem={({ item }) => <PendingTaskCard task={item} onCall={handleCall} />}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
         }
         ListEmptyComponent={
           <EmptyState
-            icon="clipboard-text-off-outline"
-            title="No Tasks Found"
+            icon="clipboard-check-outline"
+            title={towerId ? 'No pending tasks for this tower' : 'Tower not assigned'}
             subtitle={
-              filter !== 'ALL'
-                ? `No ${filter.replace('_', ' ').toLowerCase()} tasks at the moment`
-                : 'No tasks have been assigned to this machine yet.'
+              towerId
+                ? 'New pending washes will appear here as they are assigned.'
+                : 'Please contact an administrator to assign this machine to a tower.'
             }
           />
         }
-        contentContainerStyle={
-          filtered.length === 0 ? { flex: 1 } : { paddingVertical: 8, paddingBottom: 24 }
-        }
+        contentContainerStyle={tasks.length === 0 ? styles.emptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
@@ -184,7 +229,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
   pageCount: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
-  headerBadge: {
+  refreshButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
@@ -192,25 +237,106 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  chip: { borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 0 },
-  chipSelected: { backgroundColor: '#7C3AED' },
-  chipText: { fontSize: 12, color: '#64748B', fontWeight: '600' },
-  chipTextSelected: { color: '#FFFFFF' },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    margin: 10,
+    marginHorizontal: 16,
+    marginTop: 10,
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
+    gap: 8,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 13,
+    flex: 1,
+  },
+  listContent: {
+    paddingVertical: 10,
+    paddingBottom: 24,
+  },
+  emptyContent: {
+    flexGrow: 1,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  titleText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    flexShrink: 1,
+  },
+  subscriptionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  subscriptionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  plateText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginTop: 10,
+    marginBottom: 8,
+    letterSpacing: 0.4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#475569',
+    flex: 1,
+  },
+  notesText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  callButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  callButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

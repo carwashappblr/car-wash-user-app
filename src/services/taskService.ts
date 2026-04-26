@@ -57,6 +57,30 @@ export interface PaginatedTasksResponse {
   pagination: PaginationMeta;
 }
 
+export interface PendingTowerTask {
+  id: string;
+  status: TaskStatus;
+  slotId: string;
+  scheduledDate: string;
+  isSubscriptionTask: boolean;
+  notes?: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    phone?: string | null;
+  };
+  car: {
+    id: string;
+    make: string;
+    model: string;
+    plateNumber: string;
+    color?: string | null;
+    towerId: string;
+    defaultSlotNumber?: string | null;
+  };
+}
+
 export interface CreateTaskPayload {
   carId: string;
   serviceType: ServiceType;
@@ -70,6 +94,9 @@ export const taskService = {
   /** Legacy (non-paginated) – kept for operator/machine screens and User HomeScreen */
   getMyTasks: (): Promise<{ data: Task[] }> =>
     apiClient.get('/tasks'),
+
+  getPendingTowerTasks: (towerId: string): Promise<{ data: PendingTowerTask[] }> =>
+    apiClient.get(`/tasks/tower/${towerId}/pending`),
 
   createTask: (payload: CreateTaskPayload): Promise<{ data: Task }> =>
     apiClient.post('/tasks', payload),
