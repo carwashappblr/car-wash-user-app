@@ -60,6 +60,7 @@ export interface PaginatedTasksResponse {
 export interface PendingTowerTask {
   id: string;
   status: TaskStatus;
+  machineId?: string | null;
   slotId: string;
   scheduledDate: string;
   isSubscriptionTask: boolean;
@@ -79,6 +80,11 @@ export interface PendingTowerTask {
     towerId: string;
     defaultSlotNumber?: string | null;
   };
+  machine?: {
+    id: string;
+    name: string;
+    email?: string | null;
+  } | null;
 }
 
 export interface CreateTaskPayload {
@@ -95,14 +101,17 @@ export const taskService = {
   getMyTasks: (): Promise<{ data: Task[] }> =>
     apiClient.get('/tasks'),
 
-  getPendingTowerTasks: async (): Promise<{ data: PendingTowerTask[] }> => {
-    console.log('[taskService] GET my tower pending tasks');
+  getMyTowerTasks: async (statuses?: TaskStatus[]): Promise<{ data: PendingTowerTask[] }> => {
+    const statusParam = statuses?.join(',');
+    console.log('[taskService] GET my tower tasks', { status: statusParam });
     try {
-      const response = await apiClient.get<PendingTowerTask[]>('/tasks/my-tower/pending');
-      console.log('[taskService] GET my tower pending tasks success', { count: response.data.length });
+      const response = await apiClient.get<PendingTowerTask[]>('/tasks/my-tower/pending', {
+        params: statusParam ? { status: statusParam } : undefined,
+      });
+      console.log('[taskService] GET my tower tasks success', { count: response.data.length });
       return response;
     } catch (error: any) {
-      console.log('[taskService] GET my tower pending tasks failed', {
+      console.log('[taskService] GET my tower tasks failed', {
         status: error.response?.status,
         message: error.response?.data?.message ?? error.message,
       });
@@ -113,6 +122,6 @@ export const taskService = {
   createTask: (payload: CreateTaskPayload): Promise<{ data: Task }> =>
     apiClient.post('/tasks', payload),
 
-  updateTaskStatus: (id: string, status: TaskStatus): Promise<{ data: Task }> =>
+  updateTaskStatus: <T = Task>(id: string, status: TaskStatus): Promise<{ data: T }> =>
     apiClient.patch(`/tasks/${id}/status`, { status }),
 };

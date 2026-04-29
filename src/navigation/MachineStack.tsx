@@ -6,7 +6,7 @@ import { useTheme } from 'react-native-paper';
 
 import { MachineStackParamList, MachineTabsParamList } from './types';
 import { MachineDashboardScreen } from '../screens/machine/MachineDashboardScreen';
-import { MachineTasksScreen } from '../screens/machine/MachineTasksScreen';
+import { InstantWashScreen } from '../screens/machine/InstantWashScreen';
 
 const Tab = createBottomTabNavigator<MachineTabsParamList>();
 const Stack = createNativeStackNavigator<MachineStackParamList>();
@@ -20,8 +20,8 @@ const MachineTabs = () => {
         headerShown: false,
         tabBarIcon: ({ color, size }) => {
           const icons: Record<keyof MachineTabsParamList, keyof typeof MaterialCommunityIcons.glyphMap> = {
-            Dashboard: 'view-dashboard',
-            MachineTasks: 'clipboard-check',
+            Dashboard: 'clipboard-check',
+            InstantWash: 'car-wash',
           };
           return (
             <MaterialCommunityIcons
@@ -51,12 +51,12 @@ const MachineTabs = () => {
       <Tab.Screen
         name="Dashboard"
         component={MachineDashboardScreen}
-        options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
+        options={{ title: 'Tasks', tabBarLabel: 'Tasks' }}
       />
       <Tab.Screen
-        name="MachineTasks"
-        component={MachineTasksScreen}
-        options={{ title: 'Tasks', tabBarLabel: 'Tasks' }}
+        name="InstantWash"
+        component={InstantWashScreen}
+        options={{ title: 'Instant Wash', tabBarLabel: 'Instant Wash' }}
       />
     </Tab.Navigator>
   );

@@ -24,7 +24,7 @@ export type UserStackParamList = {
 // ─── Machine Stack ────────────────────────────────────────────────────────────
 export type MachineTabsParamList = {
   Dashboard: undefined;
-  MachineTasks: undefined;
+  InstantWash: undefined;
 };
 
 export type MachineStackParamList = {

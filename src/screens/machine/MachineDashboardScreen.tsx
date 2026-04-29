@@ -6,87 +6,179 @@ import {
   RefreshControl,
   StatusBar,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Text, Surface, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { taskService, Task } from '../../services/taskService';
+import { taskService, PendingTowerTask, TaskStatus } from '../../services/taskService';
 import { useAuth } from '../../store/AuthContext';
-import { TaskCard } from '../../components/TaskCard';
+import { StatusBadge } from '../../components/StatusBadge';
 
-const isToday = (dateStr: string) => {
-  const d = new Date(dateStr);
-  const now = new Date();
-  return (
-    d.getDate() === now.getDate() &&
-    d.getMonth() === now.getMonth() &&
-    d.getFullYear() === now.getFullYear()
-  );
+const ACTIVE_TASK_STATUSES: TaskStatus[] = ['PENDING', 'IN_PROGRESS'];
+const SCHEDULE_WINDOW_DAYS = 3;
+
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (Array.isArray(error)) return error.map((item) => getErrorMessage(item)).join(', ');
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    if ('message' in record) return getErrorMessage(record.message);
+    if ('error' in record) return getErrorMessage(record.error);
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return 'Something went wrong. Please try again.';
+};
+
+const formatScheduledDate = (value: string) =>
+  new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+const isScheduledWithinNextDays = (value: string, days: number) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + days);
+  end.setHours(23, 59, 59, 999);
+
+  return date >= start && date <= end;
 };
 
 export const MachineDashboardScreen = () => {
   const { user, logout } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<PendingTowerTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<TaskStatus | null>(null);
 
-  const loadTasks = useCallback(async () => {
+  const loadTasks = useCallback(async (status: TaskStatus | null) => {
     try {
       setError(null);
-      const res = await taskService.getMyTasks();
-      setTasks(res.data);
+      const statuses = status ? [status] : ACTIVE_TASK_STATUSES;
+      const res = await taskService.getMyTowerTasks(statuses);
+      const sorted = [...res.data].sort(
+        (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+      );
+      setTasks(sorted);
     } catch (e: any) {
-      setError('Failed to load tasks. Pull to retry.');
+      if (e.response?.status === 403) {
+        setError('This machine is not assigned to a tower.');
+      } else if (e.response?.status === 404) {
+        setError('Machine not found. Please try again or contact support.');
+      } else {
+        setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to load pending tasks.'));
+      }
       console.error('[MachineDashboard]', e);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  useEffect(() => { loadTasks(null); }, [loadTasks]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadTasks();
+    await loadTasks(selectedStatus);
     setRefreshing(false);
   };
 
-  const handleStartTask = async (task: Task) => {
+  const shouldKeepTaskInList = useCallback(
+    (task: PendingTowerTask) => {
+      if (selectedStatus) return task.status === selectedStatus;
+      return ACTIVE_TASK_STATUSES.includes(task.status);
+    },
+    [selectedStatus]
+  );
+
+  const replaceOrRemoveTask = useCallback(
+    (updatedTask: PendingTowerTask) => {
+      setTasks((prev) => {
+        if (!shouldKeepTaskInList(updatedTask)) {
+          return prev.filter((task) => task.id !== updatedTask.id);
+        }
+        return prev.map((task) => (task.id === updatedTask.id ? updatedTask : task));
+      });
+    },
+    [shouldKeepTaskInList]
+  );
+
+  const handleStartTask = async (task: PendingTowerTask) => {
     try {
       setUpdatingId(task.id);
-      await taskService.updateTaskStatus(task.id, 'IN_PROGRESS');
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: 'IN_PROGRESS' } : t))
-      );
-    } catch (e) {
+      setError(null);
+      const response = await taskService.updateTaskStatus<PendingTowerTask>(task.id, 'IN_PROGRESS');
+      replaceOrRemoveTask(response.data);
+    } catch (e: any) {
+      if (e.response?.status === 403) {
+        setError('This task was already started by another machine.');
+      } else {
+        setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to start this task.'));
+      }
       console.error('[MachineDashboard] start task error', e);
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const handleCompleteTask = async (task: Task) => {
+  const handleCompleteTask = async (task: PendingTowerTask) => {
     try {
       setUpdatingId(task.id);
-      await taskService.updateTaskStatus(task.id, 'COMPLETED');
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: 'COMPLETED' } : t))
-      );
-    } catch (e) {
+      setError(null);
+      const response = await taskService.updateTaskStatus<PendingTowerTask>(task.id, 'COMPLETED');
+      replaceOrRemoveTask(response.data);
+    } catch (e: any) {
+      setError(getErrorMessage(e.response?.data ?? e.message ?? 'Failed to complete this task.'));
       console.error('[MachineDashboard] complete task error', e);
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const todayTasks = tasks.filter((t) => isToday(t.createdAt));
-  const pendingCount = todayTasks.filter((t) => t.status === 'PENDING').length;
-  const inProgressCount = todayTasks.filter((t) => t.status === 'IN_PROGRESS').length;
-  const completedCount = todayTasks.filter((t) => t.status === 'COMPLETED').length;
-  const activeTasks = todayTasks.filter((t) => t.status !== 'COMPLETED' && t.status !== 'CANCELLED');
+  const handleCall = useCallback(async (phone?: string | null) => {
+    if (!phone) return;
+    const url = `tel:${phone}`;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    }
+  }, []);
+
+  const handleStatusTilePress = useCallback(
+    async (status: TaskStatus) => {
+      const nextStatus = selectedStatus === status ? null : status;
+      setSelectedStatus(nextStatus);
+      setLoading(true);
+      await loadTasks(nextStatus);
+    },
+    [loadTasks, selectedStatus]
+  );
+
+  const pendingCount = tasks.filter((t) => t.status === 'PENDING').length;
+  const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
+  const completedCount = tasks.filter((t) => t.status === 'COMPLETED').length;
+  const visibleTasks = tasks.filter(
+    (task) =>
+      task.status !== 'CANCELLED' &&
+      isScheduledWithinNextDays(task.scheduledDate, SCHEDULE_WINDOW_DAYS)
+  );
+  const sectionTitle = selectedStatus
+    ? `${selectedStatus.replace('_', ' ')} Tasks (${visibleTasks.length})`
+    : `Active Tasks (${visibleTasks.length})`;
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -149,6 +241,8 @@ export const MachineDashboardScreen = () => {
             value={pendingCount}
             bg="#FEF3C7"
             color="#D97706"
+            selected={selectedStatus === 'PENDING'}
+            onPress={() => handleStatusTilePress('PENDING')}
           />
           <MachineStatCard
             icon="play-circle-outline"
@@ -156,6 +250,8 @@ export const MachineDashboardScreen = () => {
             value={inProgressCount}
             bg="#DBEAFE"
             color="#1D4ED8"
+            selected={selectedStatus === 'IN_PROGRESS'}
+            onPress={() => handleStatusTilePress('IN_PROGRESS')}
           />
           <MachineStatCard
             icon="check-circle-outline"
@@ -163,6 +259,8 @@ export const MachineDashboardScreen = () => {
             value={completedCount}
             bg="#D1FAE5"
             color="#059669"
+            selected={selectedStatus === 'COMPLETED'}
+            onPress={() => handleStatusTilePress('COMPLETED')}
           />
         </View>
 
@@ -174,27 +272,28 @@ export const MachineDashboardScreen = () => {
         )}
 
         {/* Active Tasks */}
-        <Text style={styles.sectionTitle}>
-          {activeTasks.length > 0
-            ? `Active Tasks (${activeTasks.length})`
-            : "Today's Queue"}
-        </Text>
+        <Text style={styles.sectionTitle}>{sectionTitle}</Text>
 
-        {activeTasks.length === 0 ? (
+        {visibleTasks.length === 0 ? (
           <View style={styles.emptyToday}>
             <MaterialCommunityIcons name="check-all" size={40} color="#6EE7B7" />
             <Text style={styles.emptyTodayTitle}>All Clear!</Text>
-            <Text style={styles.emptyTodaySub}>No pending tasks for today.</Text>
+            <Text style={styles.emptyTodaySub}>
+              {selectedStatus
+                ? `No ${selectedStatus.replace('_', ' ').toLowerCase()} tasks found.`
+                : 'No pending or in-progress tasks found.'}
+            </Text>
           </View>
         ) : (
-          activeTasks.map((task) => (
-            <TaskCard
+          visibleTasks.map((task) => (
+            <MachineTaskCard
               key={task.id}
               task={task}
-              showActions
               onStartTask={handleStartTask}
               onCompleteTask={handleCompleteTask}
+              onCall={handleCall}
               isUpdating={updatingId === task.id}
+              currentMachineId={user?.machineId}
             />
           ))
         )}
@@ -205,24 +304,144 @@ export const MachineDashboardScreen = () => {
   );
 };
 
+const MachineTaskCard = ({
+  task,
+  onStartTask,
+  onCompleteTask,
+  onCall,
+  isUpdating,
+  currentMachineId,
+}: {
+  task: PendingTowerTask;
+  onStartTask: (task: PendingTowerTask) => void;
+  onCompleteTask: (task: PendingTowerTask) => void;
+  onCall: (phone?: string | null) => void;
+  isUpdating: boolean;
+  currentMachineId?: string;
+}) => {
+  const title = [task.car.make, task.car.model].filter(Boolean).join(' ').trim() || 'Vehicle';
+  const isAssignedToCurrentMachine =
+    !!task.machineId && !!currentMachineId && task.machineId === currentMachineId;
+  const canStart = task.status === 'PENDING';
+  const canComplete = task.status === 'IN_PROGRESS' && isAssignedToCurrentMachine;
+
+  return (
+    <Surface style={styles.taskCard} elevation={1}>
+      <View style={styles.taskHeader}>
+        <View style={styles.taskTitleRow}>
+          <MaterialCommunityIcons name="car" size={18} color="#7C3AED" />
+          <Text style={styles.taskTitle} numberOfLines={1}>{title}</Text>
+        </View>
+        {task.isSubscriptionTask && (
+          <View style={styles.subscriptionBadge}>
+            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <Text style={styles.subscriptionBadgeText}>Subscription</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.plateRow}>
+        <Text style={styles.plateText}>{task.car.plateNumber}</Text>
+        <StatusBadge status={task.status} size="small" />
+      </View>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="account-outline" size={14} color="#64748B" />
+        <Text style={styles.metaText}>
+          {task.user.name} {task.user.phone ? `- ${task.user.phone}` : ''}
+        </Text>
+      </View>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="parking" size={14} color="#64748B" />
+        <Text style={styles.metaText}>Slot {task.slotId}</Text>
+      </View>
+
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons name="calendar-clock" size={14} color="#64748B" />
+        <Text style={styles.metaText}>Scheduled {formatScheduledDate(task.scheduledDate)}</Text>
+      </View>
+
+      {task.notes ? <Text style={styles.notesText}>{task.notes}</Text> : null}
+
+      {task.machine ? (
+        <View style={styles.assignedRow}>
+          <MaterialCommunityIcons name="robot" size={14} color="#7C3AED" />
+          <Text style={styles.assignedText}>Assigned to {task.machine.name}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.actionRow}>
+        {canStart && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.startButton]}
+            onPress={() => onStartTask(task)}
+            disabled={isUpdating}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="play" size={16} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>{isUpdating ? 'Starting...' : 'Start Washing'}</Text>
+          </TouchableOpacity>
+        )}
+
+        {canComplete && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.completeButton]}
+            onPress={() => onCompleteTask(task)}
+            disabled={isUpdating}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>{isUpdating ? 'Completing...' : 'Mark Complete'}</Text>
+          </TouchableOpacity>
+        )}
+
+        {!!task.user.phone && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.callButton]}
+            onPress={() => onCall(task.user.phone)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="phone-outline" size={16} color="#7C3AED" />
+            <Text style={styles.callButtonText}>Call</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </Surface>
+  );
+};
+
 const MachineStatCard = ({
   icon,
   label,
   value,
   bg,
   color,
+  selected,
+  onPress,
 }: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   value: number;
   bg: string;
   color: string;
+  selected: boolean;
+  onPress: () => void;
 }) => (
-  <Surface style={[styles.statCard, { backgroundColor: bg }]} elevation={0}>
-    <MaterialCommunityIcons name={icon} size={22} color={color} />
-    <Text style={[styles.statValue, { color }]}>{value}</Text>
-    <Text style={[styles.statLabel, { color }]}>{label}</Text>
-  </Surface>
+  <TouchableOpacity style={styles.statCardWrap} onPress={onPress} activeOpacity={0.82}>
+    <Surface
+      style={[
+        styles.statCard,
+        { backgroundColor: bg, borderColor: selected ? color : 'transparent' },
+        selected && styles.statCardSelected,
+      ]}
+      elevation={selected ? 2 : 0}
+    >
+      <MaterialCommunityIcons name={icon} size={22} color={color} />
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color }]}>{label}</Text>
+    </Surface>
+  </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
@@ -302,11 +521,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 8,
   },
-  statCard: {
+  statCardWrap: {
     flex: 1,
+  },
+  statCard: {
     borderRadius: 14,
     alignItems: 'center',
     paddingVertical: 12,
+    borderWidth: 2,
+  },
+  statCardSelected: {
+    transform: [{ translateY: -2 }],
   },
   statValue: { fontSize: 22, fontWeight: '900', marginTop: 4 },
   statLabel: { fontSize: 11, fontWeight: '700', marginTop: 2 },
@@ -333,4 +558,124 @@ const styles = StyleSheet.create({
   },
   emptyTodayTitle: { fontSize: 18, fontWeight: '800', color: '#059669', marginTop: 10 },
   emptyTodaySub: { fontSize: 13, color: '#94A3B8', marginTop: 4 },
+  taskCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  taskTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  taskTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  subscriptionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  subscriptionBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  plateText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E40AF',
+    letterSpacing: 0.4,
+  },
+  plateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#475569',
+    flex: 1,
+  },
+  notesText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  assignedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+  assignedText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6D28D9',
+    fontWeight: '700',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  actionButton: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+  },
+  startButton: {
+    backgroundColor: '#7C3AED',
+  },
+  completeButton: {
+    backgroundColor: '#059669',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  callButton: {
+    backgroundColor: '#F5F3FF',
+  },
+  callButtonText: {
+    color: '#7C3AED',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

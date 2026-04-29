@@ -110,7 +110,7 @@ export const MachineTasksScreen = () => {
   const loadTasks = useCallback(async () => {
     try {
       setError(null);
-      const response = await taskService.getPendingTowerTasks();
+      const response = await taskService.getMyTowerTasks(['PENDING']);
       const sorted = [...response.data].sort(
         (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
       );

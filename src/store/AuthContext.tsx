@@ -17,6 +17,7 @@ export type AuthUser = {
   email: string;
   name?: string;
   phone?: string;
+  machineId?: string;
   towerId?: string;
   role: UserRole;
   type: AuthEntityType;
@@ -27,6 +28,7 @@ interface DecodedToken {
   email: string;
   role: UserRole;
   type: AuthEntityType;
+  machineId?: string;
   towerId?: string;
   exp: number;
 }
@@ -83,6 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             id: decoded.sub,
             email: decoded.email,
             name: `Machine (${decoded.email})`,
+            machineId: decoded.machineId ?? decoded.sub,
             towerId: decoded.towerId,
             role,
             type: 'machine',
@@ -145,6 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         id: decoded.sub,
         email: decoded.email,
         name: `Machine (${decoded.email})`,
+        machineId: decoded.machineId ?? decoded.sub,
         towerId: decoded.towerId,
         role: decoded.role, // 'WORKER'
         type: 'machine',
