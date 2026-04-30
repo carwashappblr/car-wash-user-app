@@ -63,6 +63,7 @@ export interface PendingTowerTask {
   machineId?: string | null;
   slotId: string;
   scheduledDate: string;
+  completedOn?: string | null;
   isSubscriptionTask: boolean;
   notes?: string | null;
   createdAt: string;
@@ -103,17 +104,40 @@ export const taskService = {
 
   getMyTowerTasks: async (statuses?: TaskStatus[]): Promise<{ data: PendingTowerTask[] }> => {
     const statusParam = statuses?.join(',');
-    console.log('[taskService] GET my tower tasks', { status: statusParam });
+    const endpoint = '/tasks/my-tower/pending';
+    console.log('[taskService] GET my tower tasks request', {
+      method: 'GET',
+      endpoint,
+      query: statusParam ? { status: statusParam } : {},
+    });
     try {
-      const response = await apiClient.get<PendingTowerTask[]>('/tasks/my-tower/pending', {
+      const response = await apiClient.get<PendingTowerTask[]>(endpoint, {
         params: statusParam ? { status: statusParam } : undefined,
       });
-      console.log('[taskService] GET my tower tasks success', { count: response.data.length });
+      console.log('[taskService] GET my tower tasks response', {
+        status: response.status,
+        count: response.data.length,
+        sample: response.data[0]
+          ? {
+              id: response.data[0].id,
+              status: response.data[0].status,
+              machineId: response.data[0].machineId ?? null,
+              scheduledDate: response.data[0].scheduledDate,
+              completedOn: response.data[0].completedOn ?? null,
+            }
+          : null,
+      });
       return response;
     } catch (error: any) {
-      console.log('[taskService] GET my tower tasks failed', {
+      console.log('[taskService] GET my tower tasks error', {
         status: error.response?.status,
         message: error.response?.data?.message ?? error.message,
+        response: error.response?.data ?? null,
+        request: {
+          method: 'GET',
+          endpoint,
+          query: statusParam ? { status: statusParam } : {},
+        },
       });
       throw error;
     }

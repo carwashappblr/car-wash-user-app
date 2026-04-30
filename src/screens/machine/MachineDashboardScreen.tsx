@@ -43,6 +43,15 @@ const formatScheduledDate = (value: string) =>
     minute: '2-digit',
   }).format(new Date(value));
 
+const formatCompletedDate = (value: string) =>
+  new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+
 const isScheduledWithinNextDays = (value: string, days: number) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return false;
@@ -71,9 +80,27 @@ export const MachineDashboardScreen = () => {
       setError(null);
       const statuses = status ? [status] : ACTIVE_TASK_STATUSES;
       const res = await taskService.getMyTowerTasks(statuses);
-      const sorted = [...res.data].sort(
-        (a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
-      );
+      const filtered = res.data.filter((task) => {
+        if (task.status === 'PENDING') {
+          return isScheduledWithinNextDays(task.scheduledDate, SCHEDULE_WINDOW_DAYS);
+        }
+        return task.status !== 'CANCELLED';
+      });
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (a.status === 'COMPLETED' && b.status === 'COMPLETED') {
+          return (
+            new Date(b.completedOn ?? b.createdAt).getTime() -
+            new Date(a.completedOn ?? a.createdAt).getTime()
+          );
+        }
+
+        if (a.status === 'COMPLETED') return 1;
+        if (b.status === 'COMPLETED') return -1;
+
+        return new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime();
+      });
+
       setTasks(sorted);
     } catch (e: any) {
       if (e.response?.status === 403) {
@@ -99,6 +126,9 @@ export const MachineDashboardScreen = () => {
 
   const shouldKeepTaskInList = useCallback(
     (task: PendingTowerTask) => {
+      if (task.status === 'PENDING') {
+        return isScheduledWithinNextDays(task.scheduledDate, SCHEDULE_WINDOW_DAYS);
+      }
       if (selectedStatus) return task.status === selectedStatus;
       return ACTIVE_TASK_STATUSES.includes(task.status);
     },
@@ -171,11 +201,7 @@ export const MachineDashboardScreen = () => {
   const pendingCount = tasks.filter((t) => t.status === 'PENDING').length;
   const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
   const completedCount = tasks.filter((t) => t.status === 'COMPLETED').length;
-  const visibleTasks = tasks.filter(
-    (task) =>
-      task.status !== 'CANCELLED' &&
-      isScheduledWithinNextDays(task.scheduledDate, SCHEDULE_WINDOW_DAYS)
-  );
+  const visibleTasks = tasks.filter((task) => task.status !== 'CANCELLED');
   const sectionTitle = selectedStatus
     ? `${selectedStatus.replace('_', ' ')} Tasks (${visibleTasks.length})`
     : `Active Tasks (${visibleTasks.length})`;
@@ -359,7 +385,11 @@ const MachineTaskCard = ({
 
       <View style={styles.metaRow}>
         <MaterialCommunityIcons name="calendar-clock" size={14} color="#64748B" />
-        <Text style={styles.metaText}>Scheduled {formatScheduledDate(task.scheduledDate)}</Text>
+        <Text style={styles.metaText}>
+          {task.status === 'COMPLETED'
+            ? `Completed ${formatCompletedDate(task.completedOn ?? task.scheduledDate)}`
+            : `Scheduled ${formatScheduledDate(task.scheduledDate)}`}
+        </Text>
       </View>
 
       {task.notes ? <Text style={styles.notesText}>{task.notes}</Text> : null}
