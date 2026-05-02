@@ -17,6 +17,7 @@ import { ActivityIndicator, Button, Menu, Text, TextInput } from 'react-native-p
 
 import { Community, Tower, carService } from '../../services/carService';
 import { UserStackParamList } from '../../navigation/types';
+import { colors } from '../../theme/colors';
 
 type EditCarNavProp = NativeStackNavigationProp<UserStackParamList, 'EditCar'>;
 type EditCarRouteProp = NativeStackScreenProps<UserStackParamList, 'EditCar'>['route'];
@@ -190,7 +191,7 @@ export const EditCarScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1E40AF" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -202,13 +203,13 @@ export const EditCarScreen = () => {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <MaterialCommunityIcons name="car-cog" size={48} color="#1E40AF" />
+          <MaterialCommunityIcons name="car-cog" size={48} color={colors.primary} />
           <Text style={styles.heroText}>Update your car details, tower, and parking slot information</Text>
         </View>
 
         {screenError && (
           <View style={styles.serverErrorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
             <Text style={styles.serverErrorText}>{screenError}</Text>
           </View>
         )}
@@ -225,12 +226,12 @@ export const EditCarScreen = () => {
               disabled={communities.length === 0}
             >
               <View style={styles.selectFieldLeft}>
-                <MaterialCommunityIcons name="home-city-outline" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="home-city-outline" size={20} color={colors.outline} />
                 <Text style={[styles.selectFieldText, !selectedCommunity && styles.placeholderText]}>
                   {selectedCommunity?.name ?? 'Select a community'}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-down" size={20} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
             </TouchableOpacity>
           }
         >
@@ -265,14 +266,14 @@ export const EditCarScreen = () => {
               disabled={!selectedCommunity || towers.length === 0}
             >
               <View style={styles.selectFieldLeft}>
-                <MaterialCommunityIcons name="office-building-outline" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="office-building-outline" size={20} color={colors.outline} />
                 <Text style={[styles.selectFieldText, !selectedTower && styles.placeholderText]}>
                   {!selectedCommunity
                     ? 'Select a community first'
                     : selectedTower?.name ?? (towers.length > 0 ? 'Select a tower' : 'No towers available')}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-down" size={20} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
             </TouchableOpacity>
           }
         >
@@ -438,13 +439,13 @@ export const EditCarScreen = () => {
           disabled={!isValid || isSubmitting || !!screenError}
           style={styles.button}
           contentStyle={styles.buttonContent}
-          buttonColor="#1E40AF"
+          buttonColor={colors.primary}
           labelStyle={styles.buttonLabel}
         >
           Save Changes
         </Button>
 
-        <Button mode="text" onPress={() => navigation.goBack()} style={styles.cancelButton} textColor="#64748B">
+        <Button mode="text" onPress={() => navigation.goBack()} style={styles.cancelButton} textColor={colors.outline}>
           Back
         </Button>
       </ScrollView>
@@ -453,37 +454,37 @@ export const EditCarScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: colors.surface },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
   scroll: { padding: 20, paddingBottom: 40 },
   hero: {
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 24,
     padding: 24,
     marginBottom: 24,
     gap: 10,
   },
   heroText: {
     fontSize: 14,
-    color: '#1E40AF',
+    color: colors.onPrimaryContainer,
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '500',
   },
-  input: { marginBottom: 4, backgroundColor: '#FFFFFF' },
+  input: { marginBottom: 4, backgroundColor: colors.surfaceContainerLowest },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginBottom: 10,
   },
   selectField: {
     minHeight: 56,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
     paddingHorizontal: 14,
     marginBottom: 4,
     flexDirection: 'row',
@@ -497,21 +498,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   selectFieldText: {
-    color: '#0F172A',
+    color: colors.onSurface,
     fontSize: 14,
     flex: 1,
   },
   placeholderText: {
-    color: '#94A3B8',
+    color: colors.outline,
   },
   selectFieldDisabled: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceContainerLow,
   },
   selectFieldError: {
-    borderColor: '#DC2626',
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 4,
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
   colorLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginBottom: 10,
     marginTop: 8,
   },
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   colorChipSelected: {
-    borderColor: '#1E40AF',
+    borderColor: colors.primary,
   },
   colorChipText: {
     fontSize: 12,
@@ -549,13 +550,13 @@ const styles = StyleSheet.create({
   serverErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
     gap: 8,
   },
-  serverErrorText: { color: '#DC2626', fontSize: 13, flex: 1, marginLeft: 4 },
+  serverErrorText: { color: colors.error, fontSize: 13, flex: 1, marginLeft: 4 },
   button: { borderRadius: 12, marginTop: 16 },
   buttonContent: { paddingVertical: 6 },
   buttonLabel: { fontSize: 15, fontWeight: '700' },

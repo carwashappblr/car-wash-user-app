@@ -5,13 +5,21 @@ import {
   FlatList,
   RefreshControl,
   StatusBar,
+  TouchableOpacity,
+  Image,
+  ScrollView
 } from 'react-native';
-import { Text, Chip, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { taskService, Task, TaskStatus } from '../../services/taskService';
 import { TaskCard } from '../../components/TaskCard';
 import { EmptyState } from '../../components/EmptyState';
+import { UserStackParamList } from '../../navigation/types';
+import { colors } from '../../theme/colors';
 
 const FILTER_OPTIONS: { label: string; value: TaskStatus | 'ALL' }[] = [
   { label: 'All', value: 'ALL' },
@@ -20,7 +28,10 @@ const FILTER_OPTIONS: { label: string; value: TaskStatus | 'ALL' }[] = [
   { label: 'Completed', value: 'COMPLETED' },
 ];
 
+type NavigationProp = NativeStackNavigationProp<UserStackParamList>;
+
 export const MyTasksScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,43 +62,48 @@ export const MyTasksScreen = () => {
   const filtered = filter === 'ALL' ? tasks : tasks.filter((t) => t.status === filter);
 
   if (loading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#1E40AF" /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      {/* Header */}
-      <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>My Bookings</Text>
-        <Text style={styles.pageCount}>{tasks.length} total</Text>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      {/* TopAppBar */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Wash History</Text>
+        </View>
+        <View style={styles.profilePicContainer}>
+          <MaterialCommunityIcons name="account" size={24} color={colors.primary} />
+        </View>
       </View>
 
-      {/* Filter chips */}
-      <View style={styles.filterRow}>
-        {FILTER_OPTIONS.map((opt) => {
-          const count = opt.value === 'ALL'
-            ? tasks.length
-            : tasks.filter((t) => t.status === opt.value).length;
-          return (
-            <Chip
-              key={opt.value}
-              selected={filter === opt.value}
-              onPress={() => setFilter(opt.value)}
-              style={[
-                styles.chip,
-                filter === opt.value && styles.chipSelected,
-              ]}
-              textStyle={[
-                styles.chipText,
-                filter === opt.value && styles.chipTextSelected,
-              ]}
-              showSelectedCheck={false}
-            >
-              {opt.label} {count > 0 ? `(${count})` : ''}
-            </Chip>
-          );
-        })}
+      {/* Segmented Filter Pills */}
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {FILTER_OPTIONS.map((opt) => {
+            const isSelected = filter === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.filterPill,
+                  isSelected ? styles.filterPillSelected : styles.filterPillInactive
+                ]}
+                onPress={() => setFilter(opt.value)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.filterPillText,
+                  isSelected ? styles.filterPillTextSelected : styles.filterPillTextInactive
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {error && (
@@ -101,71 +117,122 @@ export const MyTasksScreen = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <TaskCard task={item} showActions={false} />}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E40AF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           <EmptyState
-            icon="clipboard-text-off-outline"
+            icon="car-wash"
             title="No bookings found"
             subtitle={
               filter !== 'ALL'
                 ? `No ${filter.replace('_', ' ').toLowerCase()} tasks`
-                : 'Book your first car wash from the Book Wash tab!'
+                : 'Book your first car wash by tapping the + button!'
             }
           />
         }
-        contentContainerStyle={filtered.length === 0 ? { flex: 1 } : { paddingVertical: 8, paddingBottom: 24 }}
+        contentContainerStyle={filtered.length === 0 ? { flex: 1 } : { paddingVertical: 12, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={styles.fab}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('UserTabs', { screen: 'BookWash' })}
+      >
+        <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  pageHeader: {
+  safe: { flex: 1, backgroundColor: colors.surfaceContainerLow },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surfaceContainerLow },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  pageTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A' },
-  pageCount: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
-  filterRow: {
+  headerLeft: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+    gap: 16,
   },
-  chip: {
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: '800', 
+    color: colors.primary,
+    letterSpacing: -0.5,
+  },
+  profilePicContainer: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 0,
+    backgroundColor: colors.primaryFixed,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
   },
-  chipSelected: {
-    backgroundColor: '#1E40AF',
+  filterScroll: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    gap: 8,
   },
-  chipText: {
-    fontSize: 12,
-    color: '#64748B',
+  filterPill: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  filterPillSelected: {
+    backgroundColor: colors.primary,
+  },
+  filterPillInactive: {
+    backgroundColor: '#FFFFFF',
+  },
+  filterPillText: {
+    fontSize: 15,
     fontWeight: '600',
   },
-  chipTextSelected: {
+  filterPillTextSelected: {
     color: '#FFFFFF',
+  },
+  filterPillTextInactive: {
+    color: colors.onSurfaceVariant,
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
     padding: 12,
-    marginHorizontal: 16,
+    marginHorizontal: 24,
     marginTop: 8,
-    borderRadius: 10,
+    borderRadius: 12,
   },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#2563EB', // blue-600
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#BFDBFE', // blue-200
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 8,
+  }
 });

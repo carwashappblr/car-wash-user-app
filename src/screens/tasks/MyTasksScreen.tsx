@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { taskService, UserTask, TaskStatus } from '../../services/taskService';
 import { StatusBadge } from '../../components/StatusBadge';
+import { colors } from '../../theme/colors';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const UserTaskCard: React.FC<UserTaskCardProps> = ({ task }) => {
       {/* ── Header ── */}
       <View style={styles.cardHeader}>
         <View style={styles.carLabelRow}>
-          <MaterialCommunityIcons name="car" size={16} color="#1E40AF" />
+          <MaterialCommunityIcons name="car" size={16} color={colors.primary} />
           <Text style={styles.makeModel} numberOfLines={1}>
             {task.car.make} {task.car.model}
           </Text>
@@ -49,12 +50,12 @@ const UserTaskCard: React.FC<UserTaskCardProps> = ({ task }) => {
       {/* ── Plate & Slot row ── */}
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
-          <MaterialCommunityIcons name="card-text-outline" size={13} color="#64748B" />
+          <MaterialCommunityIcons name="card-text-outline" size={13} color={colors.outline} />
           <Text style={styles.metaText}>{task.car.plateNumber}</Text>
         </View>
         <View style={styles.metaDot} />
         <View style={styles.metaItem}>
-          <MaterialCommunityIcons name="parking" size={13} color="#64748B" />
+          <MaterialCommunityIcons name="parking" size={13} color={colors.outline} />
           <Text style={styles.metaText}>Slot {task.slotId}</Text>
         </View>
       </View>
@@ -62,13 +63,13 @@ const UserTaskCard: React.FC<UserTaskCardProps> = ({ task }) => {
       {/* ── Date row ── */}
       <View style={styles.footerRow}>
         <View style={styles.metaItem}>
-          <MaterialCommunityIcons name="calendar-clock" size={14} color="#6366F1" />
+          <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.secondary} />
           <Text style={styles.dateText}>{formatScheduledDate(task.scheduledDate)}</Text>
         </View>
 
         {isSubscription && (
           <View style={styles.subBadge}>
-            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <MaterialCommunityIcons name="repeat" size={11} color={colors.onTertiaryFixedVariant} />
             <Text style={styles.subBadgeText}>Subscription</Text>
           </View>
         )}
@@ -184,7 +185,7 @@ export const MyTasksScreen: React.FC = () => {
     if (!hasNextPage && allTasks.length > 0) {
       return (
         <View style={styles.footer}>
-          <MaterialCommunityIcons name="check-all" size={16} color="#94A3B8" />
+          <MaterialCommunityIcons name="check-all" size={16} color={colors.outline} />
           <Text style={styles.footerText}>No more washes to show</Text>
         </View>
       );
@@ -197,7 +198,7 @@ export const MyTasksScreen: React.FC = () => {
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIconWrap}>
-          <MaterialCommunityIcons name="car-wash" size={60} color="#CBD5E1" />
+          <MaterialCommunityIcons name="car-wash" size={60} color={colors.outlineVariant} />
         </View>
         <Text style={styles.emptyTitle}>No washes yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -211,7 +212,7 @@ export const MyTasksScreen: React.FC = () => {
   const ErrorBanner = () =>
     error ? (
       <View style={styles.errorBanner}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+        <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity
           onPress={() => fetchTasks(isFirstLoad ? 1 : currentPage)}
@@ -297,12 +298,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.onSurface,
     letterSpacing: -0.5,
     flex: 1,
   },
   countChip: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.primaryContainer,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: colors.onPrimaryContainer,
   },
 
   // List
@@ -323,11 +324,13 @@ const styles = StyleSheet.create({
 
   // Task card
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -345,7 +348,7 @@ const styles = StyleSheet.create({
   makeModel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.onSurface,
     letterSpacing: 0.2,
     flexShrink: 1,
   },
@@ -364,11 +367,11 @@ const styles = StyleSheet.create({
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: colors.outlineVariant,
   },
   metaText: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.outline,
     fontWeight: '500',
   },
   footerRow: {
@@ -378,14 +381,14 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 13,
-    color: '#6366F1',
+    color: colors.secondary,
     fontWeight: '600',
   },
   subBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F3E8FF',
+    backgroundColor: colors.tertiaryFixed,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
@@ -393,12 +396,12 @@ const styles = StyleSheet.create({
   subBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.onTertiaryFixedVariant,
   },
   notes: {
     marginTop: 8,
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.outline,
     fontStyle: 'italic',
     lineHeight: 17,
   },
@@ -408,7 +411,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   skeletonLine: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: 6,
   },
 
@@ -422,7 +425,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: colors.outline,
     fontStyle: 'italic',
   },
 
@@ -438,7 +441,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceContainerLow,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -446,13 +449,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#475569',
+    color: colors.onSurfaceVariant,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: colors.outline,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -461,7 +464,7 @@ const styles = StyleSheet.create({
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     marginHorizontal: 16,
     marginBottom: 4,
     borderRadius: 10,
@@ -469,15 +472,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.error,
   },
   errorText: {
     flex: 1,
     fontSize: 13,
-    color: '#DC2626',
+    color: colors.error,
   },
   retryBtn: {
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.error,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 8,
@@ -485,6 +488,6 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onError,
   },
 });

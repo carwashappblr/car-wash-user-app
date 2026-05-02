@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../store/AuthContext';
 import { EmptyState } from '../../components/EmptyState';
 import { PendingTowerTask, taskService } from '../../services/taskService';
+import { colors } from '../../theme/colors';
 
 const getErrorMessage = (error: unknown): string => {
   if (typeof error === 'string') return error;
@@ -54,12 +55,12 @@ const PendingTaskCard = ({
     <Surface style={styles.card} elevation={1}>
       <View style={styles.cardHeader}>
         <View style={styles.titleRow}>
-          <MaterialCommunityIcons name="car" size={18} color="#7C3AED" />
+          <MaterialCommunityIcons name="car" size={18} color={colors.primary} />
           <Text style={styles.titleText}>{title}</Text>
         </View>
         {task.isSubscriptionTask && (
           <View style={styles.subscriptionBadge}>
-            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <MaterialCommunityIcons name="repeat" size={11} color={colors.onTertiaryFixedVariant} />
             <Text style={styles.subscriptionBadgeText}>Subscription</Text>
           </View>
         )}
@@ -68,19 +69,19 @@ const PendingTaskCard = ({
       <Text style={styles.plateText}>{task.car.plateNumber}</Text>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="account-outline" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="account-outline" size={14} color={colors.outline} />
         <Text style={styles.metaText}>
           {task.user.name} {task.user.phone ? `• ${task.user.phone}` : ''}
         </Text>
       </View>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="parking" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="parking" size={14} color={colors.outline} />
         <Text style={styles.metaText}>Slot {task.slotId}</Text>
       </View>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="calendar-clock" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.outline} />
         <Text style={styles.metaText}>Scheduled {formatScheduledDate(task.scheduledDate)}</Text>
       </View>
 
@@ -92,7 +93,7 @@ const PendingTaskCard = ({
           onPress={() => onCall(task.user.phone)}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="phone-outline" size={16} color="#FFFFFF" />
+          <MaterialCommunityIcons name="phone-outline" size={16} color={colors.onPrimary} />
           <Text style={styles.callButtonText}>Call Customer</Text>
         </TouchableOpacity>
       )}
@@ -153,15 +154,15 @@ export const MachineTasksScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: '#1E1B4B' }]}>
-        <ActivityIndicator size="large" color="#7C3AED" />
+      <View style={[styles.centered, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceContainerLowest} />
 
       <View style={styles.pageHeader}>
         <View>
@@ -170,17 +171,17 @@ export const MachineTasksScreen = () => {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="refresh" size={18} color="#7C3AED" />
+            <MaterialCommunityIcons name="refresh" size={18} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="logout" size={16} color="#7C3AED" />
+            <MaterialCommunityIcons name="logout" size={16} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {error && (
         <View style={styles.errorBanner}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+          <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -190,7 +191,7 @@ export const MachineTasksScreen = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <PendingTaskCard task={item} onCall={handleCall} />}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           <EmptyState
@@ -207,7 +208,7 @@ export const MachineTasksScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.surface },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   pageHeader: {
     flexDirection: 'row',
@@ -215,22 +216,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.outlineVariant,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  pageTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
-  pageCount: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
+  pageTitle: { fontSize: 22, fontWeight: '900', color: colors.onSurface },
+  pageCount: { fontSize: 13, color: colors.outline, fontWeight: '600', marginTop: 2 },
   refreshButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: colors.primaryContainer,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -238,14 +239,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: colors.surfaceContainerHighest,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     marginHorizontal: 16,
     marginTop: 10,
     borderRadius: 10,
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 13,
     flex: 1,
   },
@@ -265,11 +266,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -286,14 +287,14 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.onSurface,
     flexShrink: 1,
   },
   subscriptionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F3E8FF',
+    backgroundColor: colors.tertiaryFixed,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 20,
@@ -301,12 +302,12 @@ const styles = StyleSheet.create({
   subscriptionBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.onTertiaryFixedVariant,
   },
   plateText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E40AF',
+    color: colors.primary,
     marginTop: 10,
     marginBottom: 8,
     letterSpacing: 0.4,
@@ -319,13 +320,13 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: '#475569',
+    color: colors.onSurfaceVariant,
     flex: 1,
   },
   notesText: {
     marginTop: 10,
     fontSize: 12,
-    color: '#64748B',
+    color: colors.outline,
     lineHeight: 18,
   },
   callButton: {
@@ -334,13 +335,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
   },
   callButtonText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '700',
   },

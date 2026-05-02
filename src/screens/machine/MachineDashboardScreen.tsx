@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { taskService, PendingTowerTask, TaskStatus } from '../../services/taskService';
 import { useAuth } from '../../store/AuthContext';
 import { StatusBadge } from '../../components/StatusBadge';
+import { colors } from '../../theme/colors';
 
 const ACTIVE_TASK_STATUSES: TaskStatus[] = ['PENDING', 'IN_PROGRESS'];
 const SCHEDULE_WINDOW_DAYS = 3;
@@ -214,19 +215,19 @@ export const MachineDashboardScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: '#0F0A30' }]}>
-        <ActivityIndicator size="large" color="#7C3AED" />
+      <View style={[styles.centered, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E1B4B" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.primaryContainer} />
       <ScrollView
         style={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -234,7 +235,7 @@ export const MachineDashboardScreen = () => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.machineIconWrap}>
-              <MaterialCommunityIcons name="robot" size={28} color="#C4B5FD" />
+              <MaterialCommunityIcons name="robot" size={28} color={colors.onPrimaryFixed} />
             </View>
             <View>
               <Text style={styles.machineLabel}>MACHINE PORTAL</Text>
@@ -247,7 +248,7 @@ export const MachineDashboardScreen = () => {
               <Text style={styles.onlineText}>Online</Text>
             </View>
             <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="logout" size={16} color="#FDE68A" />
+              <MaterialCommunityIcons name="logout" size={16} color={colors.onErrorContainer} />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           </View>
@@ -255,7 +256,7 @@ export const MachineDashboardScreen = () => {
 
         {/* Date Banner */}
         <View style={styles.dateBanner}>
-          <MaterialCommunityIcons name="calendar-today" size={16} color="#A78BFA" />
+          <MaterialCommunityIcons name="calendar-today" size={16} color={colors.primary} />
           <Text style={styles.dateText}>{today}</Text>
         </View>
 
@@ -265,8 +266,8 @@ export const MachineDashboardScreen = () => {
             icon="clock-outline"
             label="Pending"
             value={pendingCount}
-            bg="#FEF3C7"
-            color="#D97706"
+            bg={colors.surfaceContainerHighest}
+            color={colors.primary}
             selected={selectedStatus === 'PENDING'}
             onPress={() => handleStatusTilePress('PENDING')}
           />
@@ -274,8 +275,8 @@ export const MachineDashboardScreen = () => {
             icon="play-circle-outline"
             label="In Progress"
             value={inProgressCount}
-            bg="#DBEAFE"
-            color="#1D4ED8"
+            bg={colors.primaryFixed}
+            color={colors.onPrimaryFixedVariant}
             selected={selectedStatus === 'IN_PROGRESS'}
             onPress={() => handleStatusTilePress('IN_PROGRESS')}
           />
@@ -283,8 +284,8 @@ export const MachineDashboardScreen = () => {
             icon="check-circle-outline"
             label="Done"
             value={completedCount}
-            bg="#D1FAE5"
-            color="#059669"
+            bg={colors.secondaryContainer}
+            color={colors.secondary}
             selected={selectedStatus === 'COMPLETED'}
             onPress={() => handleStatusTilePress('COMPLETED')}
           />
@@ -292,8 +293,8 @@ export const MachineDashboardScreen = () => {
 
         {error && (
           <View style={styles.errorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
-            <Text style={{ color: '#DC2626', fontSize: 13, marginLeft: 6, flex: 1 }}>{error}</Text>
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text style={{ color: colors.error, fontSize: 13, marginLeft: 6, flex: 1 }}>{error}</Text>
           </View>
         )}
 
@@ -302,7 +303,7 @@ export const MachineDashboardScreen = () => {
 
         {visibleTasks.length === 0 ? (
           <View style={styles.emptyToday}>
-            <MaterialCommunityIcons name="check-all" size={40} color="#6EE7B7" />
+            <MaterialCommunityIcons name="check-all" size={40} color={colors.secondary} />
             <Text style={styles.emptyTodayTitle}>All Clear!</Text>
             <Text style={styles.emptyTodaySub}>
               {selectedStatus
@@ -355,12 +356,12 @@ const MachineTaskCard = ({
     <Surface style={styles.taskCard} elevation={1}>
       <View style={styles.taskHeader}>
         <View style={styles.taskTitleRow}>
-          <MaterialCommunityIcons name="car" size={18} color="#7C3AED" />
+          <MaterialCommunityIcons name="car" size={18} color={colors.primary} />
           <Text style={styles.taskTitle} numberOfLines={1}>{title}</Text>
         </View>
         {task.isSubscriptionTask && (
           <View style={styles.subscriptionBadge}>
-            <MaterialCommunityIcons name="repeat" size={11} color="#7C3AED" />
+            <MaterialCommunityIcons name="repeat" size={11} color={colors.onTertiaryFixedVariant} />
             <Text style={styles.subscriptionBadgeText}>Subscription</Text>
           </View>
         )}
@@ -372,19 +373,19 @@ const MachineTaskCard = ({
       </View>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="account-outline" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="account-outline" size={14} color={colors.outline} />
         <Text style={styles.metaText}>
           {task.user.name} {task.user.phone ? `- ${task.user.phone}` : ''}
         </Text>
       </View>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="parking" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="parking" size={14} color={colors.outline} />
         <Text style={styles.metaText}>Slot {task.slotId}</Text>
       </View>
 
       <View style={styles.metaRow}>
-        <MaterialCommunityIcons name="calendar-clock" size={14} color="#64748B" />
+        <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.outline} />
         <Text style={styles.metaText}>
           {task.status === 'COMPLETED'
             ? `Completed ${formatCompletedDate(task.completedOn ?? task.scheduledDate)}`
@@ -396,7 +397,7 @@ const MachineTaskCard = ({
 
       {task.machine ? (
         <View style={styles.assignedRow}>
-          <MaterialCommunityIcons name="robot" size={14} color="#7C3AED" />
+          <MaterialCommunityIcons name="robot" size={14} color={colors.onPrimaryFixed} />
           <Text style={styles.assignedText}>Assigned to {task.machine.name}</Text>
         </View>
       ) : null}
@@ -409,7 +410,7 @@ const MachineTaskCard = ({
             disabled={isUpdating}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="play" size={16} color="#FFFFFF" />
+            <MaterialCommunityIcons name="play" size={16} color={colors.onPrimary} />
             <Text style={styles.actionButtonText}>{isUpdating ? 'Starting...' : 'Start Washing'}</Text>
           </TouchableOpacity>
         )}
@@ -421,7 +422,7 @@ const MachineTaskCard = ({
             disabled={isUpdating}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />
+            <MaterialCommunityIcons name="check" size={16} color={colors.onSecondary} />
             <Text style={styles.actionButtonText}>{isUpdating ? 'Completing...' : 'Mark Complete'}</Text>
           </TouchableOpacity>
         )}
@@ -432,7 +433,7 @@ const MachineTaskCard = ({
             onPress={() => onCall(task.user.phone)}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="phone-outline" size={16} color="#7C3AED" />
+            <MaterialCommunityIcons name="phone-outline" size={16} color={colors.primary} />
             <Text style={styles.callButtonText}>Call</Text>
           </TouchableOpacity>
         )}
@@ -475,11 +476,11 @@ const MachineStatCard = ({
 );
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#1E1B4B' },
+  safe: { flex: 1, backgroundColor: colors.primaryContainer },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { flex: 1, backgroundColor: '#F8FAFC' },
+  scroll: { flex: 1, backgroundColor: colors.surface },
   header: {
-    backgroundColor: '#1E1B4B',
+    backgroundColor: colors.primaryContainer,
     padding: 20,
     paddingBottom: 32,
     flexDirection: 'row',
@@ -492,21 +493,21 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(124,58,237,0.3)',
+    backgroundColor: colors.primaryFixed,
     justifyContent: 'center',
     alignItems: 'center',
   },
   machineLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#A78BFA',
+    color: colors.onPrimaryContainer,
     letterSpacing: 2,
   },
-  machineName: { fontSize: 14, color: '#E0E7FF', fontWeight: '600', marginTop: 2 },
+  machineName: { fontSize: 14, color: colors.onPrimary, fontWeight: '600', marginTop: 2 },
   onlineIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16,185,129,0.2)',
+    backgroundColor: colors.secondaryContainer,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
@@ -516,9 +517,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.secondary,
   },
-  onlineText: { fontSize: 12, color: '#6EE7B7', fontWeight: '700' },
+  onlineText: { fontSize: 12, color: colors.onSecondaryContainer, fontWeight: '700' },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -526,17 +527,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(248, 113, 113, 0.16)',
+    backgroundColor: colors.errorContainer,
   },
   logoutText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FDE68A',
+    color: colors.onErrorContainer,
   },
   dateBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EDE9FE',
+    backgroundColor: colors.surfaceContainerHighest,
     marginHorizontal: 16,
     marginTop: -16,
     borderRadius: 12,
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-  dateText: { fontSize: 13, fontWeight: '700', color: '#5B21B6' },
+  dateText: { fontSize: 13, fontWeight: '700', color: colors.primary },
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginHorizontal: 16,
     marginTop: 20,
     marginBottom: 8,
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     borderRadius: 10,
     padding: 12,
     margin: 16,
@@ -586,14 +587,14 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     paddingHorizontal: 24,
   },
-  emptyTodayTitle: { fontSize: 18, fontWeight: '800', color: '#059669', marginTop: 10 },
-  emptyTodaySub: { fontSize: 13, color: '#94A3B8', marginTop: 4 },
+  emptyTodayTitle: { fontSize: 18, fontWeight: '800', color: colors.secondary, marginTop: 10 },
+  emptyTodaySub: { fontSize: 13, color: colors.outline, marginTop: 4 },
   taskCard: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
   },
   taskHeader: {
     flexDirection: 'row',
@@ -611,13 +612,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.onSurface,
   },
   subscriptionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F3E8FF',
+    backgroundColor: colors.tertiaryFixed,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 20,
@@ -625,12 +626,12 @@ const styles = StyleSheet.create({
   subscriptionBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.onTertiaryFixedVariant,
   },
   plateText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E40AF',
+    color: colors.primary,
     letterSpacing: 0.4,
   },
   plateRow: {
@@ -649,20 +650,20 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: '#475569',
+    color: colors.onSurfaceVariant,
     flex: 1,
   },
   notesText: {
     marginTop: 10,
     fontSize: 12,
-    color: '#64748B',
+    color: colors.outline,
     lineHeight: 18,
   },
   assignedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: colors.primaryFixed,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -671,7 +672,7 @@ const styles = StyleSheet.create({
   assignedText: {
     flex: 1,
     fontSize: 12,
-    color: '#6D28D9',
+    color: colors.onPrimaryFixed,
     fontWeight: '700',
   },
   actionRow: {
@@ -690,21 +691,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   startButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.primary,
   },
   completeButton: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.secondary,
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
   callButton: {
-    backgroundColor: '#F5F3FF',
+    backgroundColor: colors.surfaceContainerHighest,
   },
   callButtonText: {
-    color: '#7C3AED',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
   },

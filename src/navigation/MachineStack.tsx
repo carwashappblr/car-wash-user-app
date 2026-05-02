@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MachineStackParamList, MachineTabsParamList } from './types';
 import { MachineDashboardScreen } from '../screens/machine/MachineDashboardScreen';
@@ -13,6 +14,7 @@ const Stack = createNativeStackNavigator<MachineStackParamList>();
 
 const MachineTabs = () => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -37,9 +39,9 @@ const MachineTabs = () => {
           backgroundColor: '#1E1B4B',
           borderTopColor: '#312E81',
           borderTopWidth: 1,
-          paddingBottom: 4,
+          paddingBottom: Math.max(insets.bottom, 4),
           paddingTop: 4,
-          height: 60,
+          height: 60 + Math.max(insets.bottom, 0),
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -49,7 +51,7 @@ const MachineTabs = () => {
       })}
     >
       <Tab.Screen
-        name="Dashboard"
+        name="Home"
         component={MachineDashboardScreen}
         options={{ title: 'Tasks', tabBarLabel: 'Tasks' }}
       />

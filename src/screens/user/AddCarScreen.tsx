@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { carService, Community, Tower } from '../../services/carService';
 import { UserStackParamList } from '../../navigation/types';
+import { colors } from '../../theme/colors';
 
 type AddCarNavProp = NativeStackNavigationProp<UserStackParamList, 'AddCar'>;
 type AddCarFormValues = {
@@ -176,18 +177,18 @@ export const AddCarScreen = () => {
       >
         {/* Icon hero */}
         <View style={styles.hero}>
-          <MaterialCommunityIcons name="car-settings" size={48} color="#1E40AF" />
+          <MaterialCommunityIcons name="car-settings" size={48} color={colors.primary} />
           <Text style={styles.heroText}>Register your vehicle, choose its tower, and optionally add a default slot</Text>
         </View>
 
         {loadingCommunities ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color="#1E40AF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loadingText}>Loading communities...</Text>
           </View>
         ) : communityError ? (
           <View style={styles.serverErrorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
             <Text style={styles.serverErrorText}>{communityError}</Text>
           </View>
         ) : null}
@@ -213,12 +214,12 @@ export const AddCarScreen = () => {
               disabled={loadingCommunities || communities.length === 0}
             >
               <View style={styles.selectFieldLeft}>
-                <MaterialCommunityIcons name="home-city-outline" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="home-city-outline" size={20} color={colors.outline} />
                 <Text style={[styles.selectFieldText, !selectedCommunity && styles.placeholderText]}>
                   {selectedCommunity?.name ?? (loadingCommunities ? 'Loading communities...' : 'Select a community')}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-down" size={20} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
             </TouchableOpacity>
           }
         >
@@ -258,14 +259,14 @@ export const AddCarScreen = () => {
               disabled={!selectedCommunity || towers.length === 0}
             >
               <View style={styles.selectFieldLeft}>
-                <MaterialCommunityIcons name="office-building-outline" size={20} color="#64748B" />
+                <MaterialCommunityIcons name="office-building-outline" size={20} color={colors.outline} />
                 <Text style={[styles.selectFieldText, !selectedTower && styles.placeholderText]}>
                   {!selectedCommunity
                     ? 'Select a community first'
                     : selectedTower?.name ?? (towers.length > 0 ? 'Select a tower' : 'No towers available')}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-down" size={20} color="#94A3B8" />
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
             </TouchableOpacity>
           }
         >
@@ -424,7 +425,7 @@ export const AddCarScreen = () => {
         {/* Server Error */}
         {submitError && (
           <View style={styles.serverErrorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
             <Text style={styles.serverErrorText}>{submitError}</Text>
           </View>
         )}
@@ -436,7 +437,7 @@ export const AddCarScreen = () => {
           disabled={!isValid || isSubmitting || loadingCommunities || !!communityError}
           style={styles.button}
           contentStyle={styles.buttonContent}
-          buttonColor="#1E40AF"
+          buttonColor={colors.primary}
           labelStyle={{ fontSize: 15, fontWeight: '700' }}
         >
           Add Car
@@ -446,7 +447,7 @@ export const AddCarScreen = () => {
           mode="text"
           onPress={() => navigation.goBack()}
           style={{ marginTop: 4 }}
-          textColor="#64748B"
+          textColor={colors.outline}
         >
           Cancel
         </Button>
@@ -456,19 +457,19 @@ export const AddCarScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: colors.surface },
   scroll: { padding: 20, paddingBottom: 40 },
   hero: {
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: 24,
     padding: 24,
     marginBottom: 24,
     gap: 10,
   },
   heroText: {
     fontSize: 14,
-    color: '#1E40AF',
+    color: colors.onPrimaryContainer,
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '500',
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
   loadingBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -484,22 +485,22 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#475569',
+    color: colors.onSurfaceVariant,
     fontWeight: '500',
   },
-  input: { marginBottom: 4, backgroundColor: '#FFFFFF' },
+  input: { marginBottom: 4, backgroundColor: colors.surfaceContainerLowest },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginBottom: 10,
   },
   selectField: {
     minHeight: 56,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
     paddingHorizontal: 14,
     marginBottom: 4,
     flexDirection: 'row',
@@ -513,24 +514,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   selectFieldText: {
-    color: '#0F172A',
+    color: colors.onSurface,
     fontSize: 14,
     flex: 1,
   },
   placeholderText: {
-    color: '#94A3B8',
+    color: colors.outline,
   },
   selectFieldDisabled: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceContainerLow,
   },
   selectFieldError: {
-    borderColor: '#DC2626',
+    borderColor: colors.error,
   },
-  errorText: { color: '#DC2626', fontSize: 12, marginBottom: 12, marginLeft: 4 },
+  errorText: { color: colors.error, fontSize: 12, marginBottom: 12, marginLeft: 4 },
   colorLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginBottom: 10,
     marginTop: 8,
   },
@@ -551,7 +552,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   colorChipSelected: {
-    borderColor: '#1E40AF',
+    borderColor: colors.primary,
   },
   colorChipText: {
     fontSize: 12,
@@ -560,13 +561,13 @@ const styles = StyleSheet.create({
   serverErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
     gap: 8,
   },
-  serverErrorText: { color: '#DC2626', fontSize: 13, flex: 1, marginLeft: 4 },
+  serverErrorText: { color: colors.error, fontSize: 13, flex: 1, marginLeft: 4 },
   button: { borderRadius: 12, marginTop: 16 },
   buttonContent: { paddingVertical: 6 },
 });

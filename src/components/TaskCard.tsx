@@ -1,19 +1,18 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Surface } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Task } from '../services/taskService';
-import { StatusBadge } from './StatusBadge';
+import { colors } from '../theme/colors';
 
 const serviceLabels: Record<string, string> = {
-  BASIC: '🚿 Basic Wash',
-  PREMIUM: '✨ Premium Wash',
-  DELUXE: '💎 Deluxe Detail',
+  BASIC: 'Basic Wash',
+  PREMIUM: 'Premium Wash',
+  DELUXE: 'Deluxe Detail',
 };
 
 interface TaskCardProps {
   task: Task;
-  /** Show action buttons for machine operators */
   showActions?: boolean;
   onStartTask?: (task: Task) => void;
   onCompleteTask?: (task: Task) => void;
@@ -29,36 +28,70 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const date = new Date(task.createdAt);
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Status Styles
+  let statusBg = colors.tertiaryFixed;
+  let statusText = colors.onTertiaryFixedVariant;
+  let borderLeft = colors.onTertiaryContainer;
+  let statusLabel = 'Pending';
+
+  if (task.status === 'IN_PROGRESS') {
+    statusBg = colors.primaryFixed;
+    statusText = colors.onPrimaryFixedVariant;
+    borderLeft = colors.primary;
+    statusLabel = 'In Progress';
+  } else if (task.status === 'COMPLETED') {
+    statusBg = colors.secondaryContainer;
+    statusText = colors.onSecondaryContainer;
+    borderLeft = colors.secondary;
+    statusLabel = 'Completed';
+  }
 
   return (
-    <Surface style={styles.card} elevation={1}>
-      {/* Header row */}
-      <View style={styles.header}>
-        <View style={styles.carInfo}>
-          <MaterialCommunityIcons name="car" size={18} color="#1E40AF" />
-          <Text style={styles.plateText}>{task.car?.licensePlate ?? '—'}</Text>
+    <View style={[styles.card, { borderLeftColor: borderLeft }]}>
+      {/* Top Row: Car Image & Info + Badge */}
+      <View style={styles.headerRow}>
+        <View style={styles.carInfoContainer}>
+          <View style={styles.imagePlaceholder}>
+            <MaterialCommunityIcons name="car-side" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.carTextContent}>
+            <Text style={styles.carTitle}>{task.car?.model || 'Unknown Car'}</Text>
+            <Text style={styles.carSubtitle}>
+              {task.car?.color || 'No color'} • {serviceLabels[task.serviceType] ?? task.serviceType}
+            </Text>
+          </View>
         </View>
-        <StatusBadge status={task.status} size="small" />
+        <View style={[styles.badge, { backgroundColor: statusBg }]}>
+          <Text style={[styles.badgeText, { color: statusText }]}>{statusLabel}</Text>
+        </View>
       </View>
 
-      {/* Car model row */}
-      {task.car?.model && (
-        <Text style={styles.modelText}>{task.car.model} · {task.car.color}</Text>
-      )}
+      <View style={styles.detailsContainer}>
+        {/* License Plate Row */}
+        <View style={styles.licenseRow}>
+          <MaterialCommunityIcons name="card-account-details-outline" size={18} color={colors.primary} />
+          <Text style={styles.licenseText}>{task.car?.licensePlate ?? '—'}</Text>
+        </View>
 
-      {/* Service type */}
-      <View style={styles.serviceRow}>
-        <Text style={styles.serviceLabel}>
-          {serviceLabels[task.serviceType] ?? task.serviceType}
-        </Text>
-        <Text style={styles.timeText}>{dateStr}, {timeStr}</Text>
+        {/* Date and Time Row */}
+        <View style={styles.dateTimeRow}>
+          <View style={styles.dateTimeItem}>
+            <MaterialCommunityIcons name="calendar-month-outline" size={18} color={colors.onSurfaceVariant} />
+            <Text style={styles.dateTimeText}>{dateStr}</Text>
+          </View>
+          <View style={styles.dateTimeItem}>
+            <MaterialCommunityIcons name="clock-outline" size={18} color={colors.onSurfaceVariant} />
+            <Text style={styles.dateTimeText}>{timeStr}</Text>
+          </View>
+        </View>
       </View>
 
-      {/* Machine assigned (visible for user) */}
+      {/* Machine assigned (visible for user if assigned) */}
       {!showActions && task.machine && (
         <View style={styles.machineRow}>
-          <MaterialCommunityIcons name="robot" size={14} color="#6366F1" />
+          <MaterialCommunityIcons name="robot" size={16} color={colors.primary} />
           <Text style={styles.machineText}>Assigned: {task.machine.name}</Text>
         </View>
       )}
@@ -96,69 +129,120 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
         </View>
       )}
-    </Surface>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    marginHorizontal: 24,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  carInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 16,
+  },
+  imagePlaceholder: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceContainer,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
   },
-  carInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  carTextContent: {
+    flex: 1,
   },
-  plateText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.5,
-    marginLeft: 6,
+  carTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
   },
-  modelText: {
-    fontSize: 13,
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  serviceLabel: {
+  carSubtitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1E40AF',
+    color: colors.onSurfaceVariant,
+    fontWeight: '500',
   },
-  timeText: {
-    fontSize: 12,
-    color: '#94A3B8',
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailsContainer: {
+    gap: 12,
+  },
+  licenseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surfaceContainerLow,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 197, 211, 0.3)',
+  },
+  licenseText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: colors.primary,
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  dateTimeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateTimeText: {
+    fontSize: 14,
+    color: colors.onSurfaceVariant,
+    fontWeight: '500',
   },
   machineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 4,
+    marginTop: 12,
+    backgroundColor: colors.surfaceContainerLow,
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
   },
   machineText: {
-    fontSize: 12,
-    color: '#6366F1',
-    marginLeft: 4,
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
   },
   actions: {
-    marginTop: 12,
+    marginTop: 16,
     flexDirection: 'row',
     gap: 8,
   },

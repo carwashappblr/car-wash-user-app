@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../store/AuthContext';
+import { colors } from '../../theme/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -67,6 +68,8 @@ export const LoginScreen = ({ navigation }: Props) => {
   const onSubmit = async (data: any) => {
     try {
       console.log("Login attempt");
+      console.log(data);
+      
       
       if (mode === 'user') {
         await login(data.email, data.password);
@@ -109,7 +112,7 @@ export const LoginScreen = ({ navigation }: Props) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: '#F8FAFC' }]}
+      style={[styles.container, { backgroundColor: colors.surface }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -118,11 +121,11 @@ export const LoginScreen = ({ navigation }: Props) => {
       >
         {/* Logo / Header */}
         <View style={styles.logoSection}>
-          <View style={[styles.logoCircle, { backgroundColor: isUser ? '#1E40AF' : '#4C1D95' }]}>
+          <View style={[styles.logoCircle, { backgroundColor: isUser ? colors.primary : colors.secondary }]}>
             <MaterialCommunityIcons
               name={isUser ? 'water-outline' : 'robot'}
               size={40}
-              color="#FFFFFF"
+              color={colors.onPrimary}
             />
           </View>
           <Text style={styles.appName}>Clean Cart</Text>
@@ -140,7 +143,7 @@ export const LoginScreen = ({ navigation }: Props) => {
                 {
                   transform: [{ translateX: toggleX }],
                   width: (width - 68) / 2,
-                  backgroundColor: isUser ? '#1E40AF' : '#4C1D95',
+                  backgroundColor: isUser ? colors.primary : colors.secondary,
                 },
               ]}
             />
@@ -152,7 +155,7 @@ export const LoginScreen = ({ navigation }: Props) => {
               <MaterialCommunityIcons
                 name="account"
                 size={16}
-                color={isUser ? '#FFFFFF' : '#94A3B8'}
+                color={isUser ? colors.onPrimary : colors.outline}
               />
               <Text style={[styles.toggleText, isUser && styles.toggleTextActive]}>
                 User Login
@@ -166,7 +169,7 @@ export const LoginScreen = ({ navigation }: Props) => {
               <MaterialCommunityIcons
                 name="robot"
                 size={16}
-                color={!isUser ? '#FFFFFF' : '#94A3B8'}
+                color={!isUser ? colors.onSecondary : colors.outline}
               />
               <Text style={[styles.toggleText, !isUser && styles.toggleTextActive]}>
                 Machine Login
@@ -203,8 +206,8 @@ export const LoginScreen = ({ navigation }: Props) => {
                 error={!!errors.email}
                 style={styles.input}
                 left={<TextInput.Icon icon={isUser ? 'email-outline' : 'identifier'} />}
-                outlineColor="#E2E8F0"
-                activeOutlineColor={isUser ? '#1E40AF' : '#4C1D95'}
+                outlineColor={colors.outlineVariant}
+                activeOutlineColor={isUser ? colors.primary : colors.secondary}
               />
             )}
           />
@@ -231,17 +234,16 @@ export const LoginScreen = ({ navigation }: Props) => {
                     onPress={() => setShowPassword(!showPassword)}
                   />
                 }
-                outlineColor="#E2E8F0"
-                activeOutlineColor={isUser ? '#1E40AF' : '#4C1D95'}
+                outlineColor={colors.outlineVariant}
+                activeOutlineColor={isUser ? colors.primary : colors.secondary}
               />
             )}
           />
           {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
 
-          {/* Server Error */}
           {errors.root?.serverError && (
             <View style={styles.serverErrorBox}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC2626" />
+              <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
               <Text style={styles.serverErrorText}>{errors.root.serverError.message}</Text>
             </View>
           )}
@@ -252,7 +254,7 @@ export const LoginScreen = ({ navigation }: Props) => {
             onPress={handleSubmit(onSubmit)}
             loading={isSubmitting}
             disabled={!isValid || isSubmitting}
-            style={[styles.button, { backgroundColor: isUser ? '#1E40AF' : '#4C1D95' }]}
+            style={[styles.button, { backgroundColor: isUser ? colors.primary : colors.secondary }]}
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
           >
@@ -265,7 +267,7 @@ export const LoginScreen = ({ navigation }: Props) => {
               mode="text"
               onPress={() => navigation.navigate('Register')}
               style={styles.linkButton}
-              textColor="#1E40AF"
+              textColor={colors.primary}
             >
               Don't have an account? Sign up
             </Button>
@@ -303,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#1E40AF',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -312,12 +314,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#0F172A',
+    color: colors.onSurface,
     letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 14,
-    color: '#64748B',
+    color: colors.outline,
     marginTop: 4,
   },
   toggleWrapper: {
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: 14,
     padding: 2,
     width: width - 64,
@@ -353,16 +355,16 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.outline,
   },
   toggleTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: 24,
     padding: 24,
-    shadowColor: '#0F172A',
+    shadowColor: colors.onSurface,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
@@ -371,21 +373,21 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0F172A',
+    color: colors.onSurface,
     marginBottom: 4,
   },
   formSubtitle: {
     fontSize: 14,
-    color: '#64748B',
+    color: colors.onSurfaceVariant,
     marginBottom: 24,
     lineHeight: 20,
   },
   input: {
     marginBottom: 8,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.surfaceContainerLowest,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 12,
     marginBottom: 8,
     marginLeft: 4,
@@ -393,14 +395,14 @@ const styles = StyleSheet.create({
   serverErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
     gap: 8,
   },
   serverErrorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 13,
     flex: 1,
     marginLeft: 6,
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   buttonLabel: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -424,7 +426,7 @@ const styles = StyleSheet.create({
   machineNote: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.outline,
     marginTop: 16,
     fontStyle: 'italic',
   },

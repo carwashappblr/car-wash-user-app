@@ -1,8 +1,9 @@
 import React from 'react';
+import { View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UserStackParamList, UserTabsParamList } from './types';
 import { HomeScreen } from '../screens/user/HomeScreen';
@@ -12,54 +13,99 @@ import { EditCarScreen } from '../screens/user/EditCarScreen';
 import { BookWashScreen } from '../screens/user/BookWashScreen';
 import { MyTasksScreen } from '../screens/user/MyTasksScreen';
 import { ProfileScreen } from '../screens/user/ProfileScreen';
+import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator<UserTabsParamList>();
 const Stack = createNativeStackNavigator<UserStackParamList>();
 
 const UserTabs = () => {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ color, size, focused }) => {
+          if (route.name === 'BookWash') {
+            return (
+              <View
+                style={{
+                  backgroundColor: colors.primary,
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 8,
+                  marginBottom: 16,
+                }}
+              >
+                <MaterialCommunityIcons name="credit-card-outline" size={22} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', marginTop: 2, letterSpacing: 0.5 }}>PLAN</Text>
+              </View>
+            );
+          }
+
           const icons: Record<keyof UserTabsParamList, keyof typeof MaterialCommunityIcons.glyphMap> = {
-            Home: 'home-variant',
+            Home: 'view-grid-outline',
             MyCars: 'car',
-            BookWash: 'water-plus',
-            MyTasks: 'clipboard-list',
-            Profile: 'account-circle',
+            BookWash: 'credit-card-outline',
+            MyTasks: 'history',
+            Profile: 'cog-outline',
           };
           return (
             <MaterialCommunityIcons
               name={icons[route.name as keyof UserTabsParamList]}
-              size={size}
-              color={color}
+              size={24}
+              color={focused ? colors.primary : '#9ca3af'}
             />
           );
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: '#9ca3af',
+        tabBarShowLabel: true,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E2E8F0',
-          borderTopWidth: 1,
-          paddingBottom: 4,
-          paddingTop: 4,
-          height: 60,
+          position: 'absolute',
+          bottom: insets.bottom > 0 ? insets.bottom : 20,
+          left: 16,
+          right: 16,
+          backgroundColor: '#ffffff',
+          borderRadius: 24,
+          borderWidth: 0,
+          borderTopWidth: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.08,
+          shadowRadius: 20,
+          elevation: 10,
+          height: 72,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
+          letterSpacing: 0.5,
+          marginTop: -4,
         },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Tab.Screen name="MyCars" component={MyCarsScreen} options={{ title: 'My Cars' }} />
-      <Tab.Screen name="BookWash" component={BookWashScreen} options={{ title: 'Book Wash' }} />
-      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'My Washes' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+      <Tab.Screen name="MyCars" component={MyCarsScreen} options={{ title: 'Cars' }} />
+      <Tab.Screen 
+        name="BookWash" 
+        component={BookWashScreen} 
+        options={{ 
+          title: 'Plan',
+          tabBarLabel: () => null, // We render the label inside the custom circular icon
+        }} 
+      />
+      <Tab.Screen name="MyTasks" component={MyTasksScreen} options={{ title: 'Records' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Menu' }} />
     </Tab.Navigator>
   );
 };
@@ -74,9 +120,9 @@ export const UserStack = () => {
         options={{
           presentation: 'modal',
           headerShown: true,
-          title: 'Add New Car',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E40AF',
+          title: 'Add New Vehicle',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.primary,
         }}
       />
       <Stack.Screen
@@ -85,9 +131,9 @@ export const UserStack = () => {
         options={{
           presentation: 'modal',
           headerShown: true,
-          title: 'Edit Car',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E40AF',
+          title: 'Edit Vehicle',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.primary,
         }}
       />
     </Stack.Navigator>
