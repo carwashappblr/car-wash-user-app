@@ -13,7 +13,8 @@ export interface Task {
   machineId?: string | null;
   car?: {
     id: string;
-    licensePlate: string;
+    licensePlate?: string;
+    plateNumber?: string;
     model: string;
     color: string;
   };

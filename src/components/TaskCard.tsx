@@ -72,7 +72,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {/* License Plate Row */}
         <View style={styles.licenseRow}>
           <MaterialCommunityIcons name="card-account-details-outline" size={18} color={colors.primary} />
-          <Text style={styles.licenseText}>{task.car?.licensePlate ?? '—'}</Text>
+          <Text style={styles.licenseText}>{task.car?.licensePlate || task.car?.plateNumber || '—'}</Text>
         </View>
 
         {/* Date and Time Row */}

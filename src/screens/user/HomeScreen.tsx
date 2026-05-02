@@ -206,7 +206,7 @@ const QuickAction = ({
   onPress: () => void;
 }) => (
   <TouchableOpacity style={[styles.quickAction, { backgroundColor: color }]} onPress={onPress} activeOpacity={0.8}>
-    <MaterialCommunityIcons name={icon} size={28} color={iconColor} />
+    <MaterialCommunityIcons name={icon} size={28} color={iconColor} style={styles.actionIcon} />
     <Text style={[styles.quickActionLabel, { color: iconColor }]}>{label}</Text>
   </TouchableOpacity>
 );
@@ -280,10 +280,22 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 16,
     alignItems: 'center',
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  actionIcon: {
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   quickActionLabel: {
     fontSize: 12,
