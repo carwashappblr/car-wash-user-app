@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Image } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Image, Animated, Pressable, Easing } from 'react-native';
 import { Text, Button, ActivityIndicator, Surface } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 import { carService, Car } from '../../services/carService';
 import { subscriptionService, Subscription, SubscriptionPlan } from '../../services/subscriptionService';
 import { UserStackParamList, UserTabsParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { PremiumLoader } from '../../components/PremiumLoader';
 
 type NavProp = NativeStackNavigationProp<UserStackParamList>;
 
@@ -57,6 +59,36 @@ export const BookWashScreen = () => {
   const [subscribing, setSubscribing] = useState(false);
   const [successSubscription, setSuccessSubscription] = useState<Subscription | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Animation refs for success screen
+  const confettiRef = useRef<any>(null);
+  const checkScale = useRef(new Animated.Value(0)).current;
+  const checkOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(30)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const summaryOpacity = useRef(new Animated.Value(0)).current;
+  const summaryTranslateY = useRef(new Animated.Value(20)).current;
+
+  // Button press animation
+  const buttonScale = useRef(new Animated.Value(1)).current;
+
+  const handleButtonPressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handleButtonPressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 8,
+    }).start();
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -112,12 +144,67 @@ export const BookWashScreen = () => {
     }
   };
 
+  // Trigger success animations when subscription succeeds
+  useEffect(() => {
+    if (!successSubscription) return;
+
+    // Reset all values
+    checkScale.setValue(0);
+    checkOpacity.setValue(0);
+    titleTranslateY.setValue(30);
+    titleOpacity.setValue(0);
+    summaryOpacity.setValue(0);
+    summaryTranslateY.setValue(20);
+
+    // Sequence: check -> title -> summary
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(checkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(checkOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          friction: 6,
+          tension: 60,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(summaryOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.spring(summaryTranslateY, {
+          toValue: 0,
+          friction: 6,
+          tension: 60,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // Fire confetti after a short delay
+    setTimeout(() => confettiRef.current?.start(), 200);
+  }, [successSubscription]);
+
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <PremiumLoader message="Loading subscription plans..." />;
   }
 
   if (successSubscription) {
@@ -127,47 +214,85 @@ export const BookWashScreen = () => {
 
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        {/* Confetti cannon - positioned at top center */}
+        <ConfettiCannon
+          ref={confettiRef}
+          count={120}
+          origin={{ x: 200, y: -20 }}
+          autoStart={false}
+          fadeOut
+          colors={['#1e3a8a', '#3b82f6', '#60a5fa', '#93c5fd', '#ffffff', '#fbbf24']}
+        />
+
         <View style={styles.successContainer}>
-          <View style={styles.successIcon}>
+          {/* Animated checkmark */}
+          <Animated.View
+            style={[
+              styles.successIcon,
+              { opacity: checkOpacity, transform: [{ scale: checkScale }] },
+            ]}
+          >
             <MaterialCommunityIcons name="check-circle" size={72} color={colors.secondary} />
-          </View>
-          <Text style={styles.successTitle}>Subscription Active</Text>
-          <Text style={styles.successSub}>
+          </Animated.View>
+
+          {/* Animated title */}
+          <Animated.Text
+            style={[
+              styles.successTitle,
+              { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
+            ]}
+          >
+            Subscription Active 🎉
+          </Animated.Text>
+
+          <Animated.Text
+            style={[
+              styles.successSub,
+              { opacity: titleOpacity },
+            ]}
+          >
             {successPlan?.name ?? 'Plan'} is now active for{' '}
             <Text style={styles.successSubHighlight}>
               {successCar?.plateNumber ?? successCar?.licensePlate ?? 'your car'}
             </Text>
             .
-          </Text>
+          </Animated.Text>
 
-          <Surface style={styles.successSummary} elevation={1}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Plan</Text>
-              <Text style={styles.summaryValue}>{successPlan?.name ?? '—'}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Car</Text>
-              <Text style={styles.summaryValue}>
-                {carLabel} · {successCar?.plateNumber ?? successCar?.licensePlate ?? '—'}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Washes Used</Text>
-              <Text style={styles.summaryValue}>{successSubscription.washesUsed}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Next Wash</Text>
-              <Text style={styles.summaryValue}>{formatDate(successSubscription.nextWashOn)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Starts</Text>
-              <Text style={styles.summaryValue}>{formatDate(successSubscription.startDate)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Ends</Text>
-              <Text style={styles.summaryValue}>{formatDate(successSubscription.endDate)}</Text>
-            </View>
-          </Surface>
+          {/* Animated summary card */}
+          <Animated.View
+            style={[
+              { width: '100%', opacity: summaryOpacity, transform: [{ translateY: summaryTranslateY }] },
+            ]}
+          >
+            <Surface style={styles.successSummary} elevation={1}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Plan</Text>
+                <Text style={styles.summaryValue}>{successPlan?.name ?? '—'}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Car</Text>
+                <Text style={styles.summaryValue}>
+                  {carLabel} · {successCar?.plateNumber ?? successCar?.licensePlate ?? '—'}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Washes Used</Text>
+                <Text style={styles.summaryValue}>{successSubscription.washesUsed}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Next Wash</Text>
+                <Text style={styles.summaryValue}>{formatDate(successSubscription.nextWashOn)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Starts</Text>
+                <Text style={styles.summaryValue}>{formatDate(successSubscription.startDate)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Ends</Text>
+                <Text style={styles.summaryValue}>{formatDate(successSubscription.endDate)}</Text>
+              </View>
+            </Surface>
+          </Animated.View>
 
           <Button
             mode="contained"
@@ -363,18 +488,23 @@ export const BookWashScreen = () => {
             </View>
           )}
 
-          <Button
-            mode="contained"
-            onPress={handleSubscribe}
-            loading={subscribing}
-            disabled={!selectedCar || !selectedPlan || subscribing}
-            style={styles.completeButton}
-            buttonColor={colors.primary}
-            contentStyle={styles.completeButtonContent}
-            labelStyle={styles.completeButtonLabel}
-          >
-            Complete Subscription <MaterialCommunityIcons name="arrow-right" size={18} />
-          </Button>
+          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+            <Pressable
+              onPress={!selectedCar || !selectedPlan || subscribing ? undefined : handleSubscribe}
+              onPressIn={handleButtonPressIn}
+              onPressOut={handleButtonPressOut}
+              style={[styles.animatedButton, (!selectedCar || !selectedPlan || subscribing) && styles.animatedButtonDisabled]}
+            >
+              {subscribing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
+              )}
+              <Text style={styles.animatedButtonText}>
+                {subscribing ? 'Processing...' : 'Complete Subscription'}
+              </Text>
+            </Pressable>
+          </Animated.View>
 
           <Text style={styles.recurringText}>RECURRING BILLING. CANCEL ANYTIME.</Text>
         </View>
@@ -695,6 +825,7 @@ const styles = StyleSheet.create({
   successContainer: {
     flex: 1,
     padding: 24,
+    paddingBottom: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -726,4 +857,32 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 14, color: colors.outline, flex: 1 },
   summaryValue: { fontSize: 14, fontWeight: '700', color: colors.onSurface, flex: 1, textAlign: 'right' },
   successButton: { borderRadius: 12, marginTop: 24, width: '100%' },
+
+  animatedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 10,
+    marginTop: 24,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  animatedButtonDisabled: {
+    backgroundColor: colors.outline,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  animatedButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
 });

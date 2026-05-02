@@ -16,6 +16,7 @@ import { taskService, PendingTowerTask, TaskStatus } from '../../services/taskSe
 import { useAuth } from '../../store/AuthContext';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors } from '../../theme/colors';
+import { PremiumLoader } from '../../components/PremiumLoader';
 
 const ACTIVE_TASK_STATUSES: TaskStatus[] = ['PENDING', 'IN_PROGRESS'];
 const SCHEDULE_WINDOW_DAYS = 3;
@@ -214,11 +215,7 @@ export const MachineDashboardScreen = () => {
   });
 
   if (loading) {
-    return (
-      <View style={[styles.centered, { backgroundColor: colors.surface }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <PremiumLoader message="Loading tasks..." />;
   }
 
   return (

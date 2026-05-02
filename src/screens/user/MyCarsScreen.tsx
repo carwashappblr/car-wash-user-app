@@ -19,6 +19,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { UserStackParamList } from '../../navigation/types';
 import { useAuth } from '../../store/AuthContext';
 import { colors } from '../../theme/colors';
+import { PremiumLoader } from '../../components/PremiumLoader';
 
 type NavProp = NativeStackNavigationProp<UserStackParamList>;
 
@@ -59,6 +60,10 @@ export const MyCarsScreen = () => {
     const unsubscribe = navigation.addListener('focus', loadCars);
     return unsubscribe;
   }, [navigation, loadCars]);
+
+  if (loading) {
+    return <PremiumLoader message="Fetching your garage..." />;
+  }
 
   const renderAddVehicleCard = () => (
     <TouchableOpacity

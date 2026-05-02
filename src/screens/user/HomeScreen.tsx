@@ -19,6 +19,7 @@ import { carService } from '../../services/carService';
 import { TaskCard } from '../../components/TaskCard';
 import { UserStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { PremiumLoader } from '../../components/PremiumLoader';
 
 type NavProp = NativeStackNavigationProp<UserStackParamList>;
 
@@ -28,6 +29,7 @@ export const HomeScreen = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [carCount, setCarCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
@@ -39,6 +41,8 @@ export const HomeScreen = () => {
       setCarCount(carRes.data.length);
     } catch (e) {
       console.error('[HomeScreen] load error', e);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -63,6 +67,10 @@ export const HomeScreen = () => {
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
   };
+
+  if (loading) {
+    return <PremiumLoader message="Preparing your dashboard..." />;
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

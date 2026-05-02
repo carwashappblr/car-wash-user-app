@@ -122,11 +122,7 @@ export const LoginScreen = ({ navigation }: Props) => {
         {/* Logo / Header */}
         <View style={styles.logoSection}>
           <View style={[styles.logoCircle, { backgroundColor: isUser ? colors.primary : colors.secondary }]}>
-            <MaterialCommunityIcons
-              name={isUser ? 'water-outline' : 'robot'}
-              size={40}
-              color={colors.onPrimary}
-            />
+           
           </View>
           <Text style={styles.appName}>Clean Cart</Text>
           <Text style={styles.tagline}>

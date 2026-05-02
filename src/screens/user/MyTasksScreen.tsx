@@ -20,6 +20,7 @@ import { TaskCard } from '../../components/TaskCard';
 import { EmptyState } from '../../components/EmptyState';
 import { UserStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { PremiumLoader } from '../../components/PremiumLoader';
 
 const FILTER_OPTIONS: { label: string; value: TaskStatus | 'ALL' }[] = [
   { label: 'All', value: 'ALL' },
@@ -59,11 +60,11 @@ export const MyTasksScreen = () => {
     setRefreshing(false);
   };
 
-  const filtered = filter === 'ALL' ? tasks : tasks.filter((t) => t.status === filter);
-
   if (loading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return <PremiumLoader message="Syncing your records..." />;
   }
+
+  const filtered = filter === 'ALL' ? tasks : tasks.filter((t) => t.status === filter);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
