@@ -26,6 +26,7 @@ type AddCarFormValues = {
   model: string;
   plateNumber: string;
   color?: string;
+  bodyStyle: string;
   defaultSlotNumber?: string;
 };
 
@@ -69,6 +70,7 @@ const schema: yup.ObjectSchema<AddCarFormValues> = yup.object({
     .required('Plate number is required'),
   model: yup.string().required('Car model is required'),
   color: yup.string().trim().optional(),
+  bodyStyle: yup.string().required('Body style is required'),
   defaultSlotNumber: yup.string().trim().optional(),
 }).required();
 
@@ -83,6 +85,13 @@ const COLOR_OPTIONS = [
   { label: 'Yellow', value: 'Yellow', hex: '#FDE68A' },
 ];
 
+const BODY_STYLE_OPTIONS = [
+  { label: 'Sedan', value: 'sedan' },
+  { label: 'Hatchback', value: 'hatchback' },
+  { label: 'SUV', value: 'suv' },
+  { label: 'Coupe', value: 'coupe' },
+];
+
 export const AddCarScreen = () => {
   const navigation = useNavigation<AddCarNavProp>();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -91,6 +100,7 @@ export const AddCarScreen = () => {
   const [communityError, setCommunityError] = useState<string | null>(null);
   const [communityMenuVisible, setCommunityMenuVisible] = useState(false);
   const [towerMenuVisible, setTowerMenuVisible] = useState(false);
+  const [bodyStyleMenuVisible, setBodyStyleMenuVisible] = useState(false);
 
   const {
     control,
@@ -109,11 +119,13 @@ export const AddCarScreen = () => {
       model: '',
       plateNumber: '',
       color: '',
+      bodyStyle: '',
       defaultSlotNumber: '',
     },
   });
 
   const selectedColor = watch('color') ?? '';
+  const selectedBodyStyle = watch('bodyStyle');
   const selectedCommunityId = watch('communityId');
   const selectedTowerId = watch('towerId');
   const selectedCommunity = useMemo(
@@ -124,6 +136,10 @@ export const AddCarScreen = () => {
   const selectedTower = useMemo(
     () => towers.find((tower) => tower.id === selectedTowerId) ?? null,
     [towers, selectedTowerId]
+  );
+  const selectedBodyStyleLabel = useMemo(
+    () => BODY_STYLE_OPTIONS.find((option) => option.value === selectedBodyStyle)?.label ?? '',
+    [selectedBodyStyle]
   );
 
   useEffect(() => {
@@ -153,6 +169,7 @@ export const AddCarScreen = () => {
         plateNumber: data.plateNumber.toUpperCase().trim(),
         model: data.model.trim(),
         color: data.color?.trim() || undefined,
+        bodyStyle: data.bodyStyle,
         defaultSlotNumber: data.defaultSlotNumber?.toUpperCase().trim() || undefined,
       });
       navigation.goBack();
@@ -322,6 +339,44 @@ export const AddCarScreen = () => {
           )}
         />
         {errors.model && <Text style={styles.errorText}>{errors.model.message}</Text>}
+
+        {/* Body Style */}
+        <Text style={styles.fieldLabel}>Body Style *</Text>
+        <Menu
+          visible={bodyStyleMenuVisible}
+          onDismiss={() => setBodyStyleMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[
+                styles.selectField,
+                errors.bodyStyle && styles.selectFieldError,
+              ]}
+              onPress={() => setBodyStyleMenuVisible(true)}
+            >
+              <View style={styles.selectFieldLeft}>
+                <MaterialCommunityIcons name="car-sports" size={20} color={colors.outline} />
+                <Text style={[styles.selectFieldText, !selectedBodyStyle && styles.placeholderText]}>
+                  {selectedBodyStyleLabel || 'Select body style'}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
+            </TouchableOpacity>
+          }
+        >
+          {BODY_STYLE_OPTIONS.map((option) => (
+            <Menu.Item
+              key={option.value}
+              onPress={() => {
+                setValue('bodyStyle', option.value, { shouldValidate: true });
+                clearErrors('bodyStyle');
+                setBodyStyleMenuVisible(false);
+              }}
+              title={option.label}
+            />
+          ))}
+        </Menu>
+        {errors.bodyStyle && <Text style={styles.errorText}>{errors.bodyStyle.message}</Text>}
 
         {/* Plate Number */}
         <Controller

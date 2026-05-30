@@ -27,6 +27,7 @@ type EditCarFormValues = {
   model: string;
   plateNumber: string;
   color?: string;
+  bodyStyle: string;
   defaultSlotNumber?: string;
 };
 
@@ -39,6 +40,13 @@ const COLOR_OPTIONS = [
   { label: 'Grey', value: 'Grey', hex: '#94A3B8' },
   { label: 'Green', value: 'Green', hex: '#6EE7B7' },
   { label: 'Yellow', value: 'Yellow', hex: '#FDE68A' },
+];
+
+const BODY_STYLE_OPTIONS = [
+  { label: 'Sedan', value: 'sedan' },
+  { label: 'Hatchback', value: 'hatchback' },
+  { label: 'SUV', value: 'suv' },
+  { label: 'Coupe', value: 'coupe' },
 ];
 
 const getErrorMessage = (error: unknown): string => {
@@ -64,6 +72,7 @@ const schema: yup.ObjectSchema<EditCarFormValues> = yup.object({
   plateNumber: yup.string().trim().min(2, 'Enter a valid plate').required('Plate number is required'),
   model: yup.string().trim().required('Car model is required'),
   color: yup.string().trim().optional(),
+  bodyStyle: yup.string().required('Body style is required'),
   defaultSlotNumber: yup.string().trim().optional(),
 }).required();
 
@@ -76,6 +85,7 @@ export const EditCarScreen = () => {
   const [screenError, setScreenError] = useState<string | null>(null);
   const [communityMenuVisible, setCommunityMenuVisible] = useState(false);
   const [towerMenuVisible, setTowerMenuVisible] = useState(false);
+  const [bodyStyleMenuVisible, setBodyStyleMenuVisible] = useState(false);
 
   const {
     control,
@@ -95,11 +105,13 @@ export const EditCarScreen = () => {
       model: '',
       plateNumber: '',
       color: '',
+      bodyStyle: '',
       defaultSlotNumber: '',
     },
   });
 
   const selectedColor = watch('color') ?? '';
+  const selectedBodyStyle = watch('bodyStyle');
   const selectedCommunityId = watch('communityId');
   const selectedTowerId = watch('towerId');
   const selectedCommunity = useMemo(
@@ -110,6 +122,10 @@ export const EditCarScreen = () => {
   const selectedTower = useMemo(
     () => towers.find((tower) => tower.id === selectedTowerId) ?? null,
     [towers, selectedTowerId]
+  );
+  const selectedBodyStyleLabel = useMemo(
+    () => BODY_STYLE_OPTIONS.find((option) => option.value === selectedBodyStyle)?.label ?? '',
+    [selectedBodyStyle]
   );
 
   useEffect(() => {
@@ -139,6 +155,7 @@ export const EditCarScreen = () => {
           model: car.model ?? '',
           plateNumber: car.plateNumber ?? car.licensePlate ?? '',
           color: car.color ?? '',
+          bodyStyle: car.bodyStyle ?? '',
           defaultSlotNumber: car.defaultSlotNumber ?? '',
         });
       } catch (e: any) {
@@ -162,6 +179,7 @@ export const EditCarScreen = () => {
         model: data.model.trim(),
         plateNumber: data.plateNumber.toUpperCase().trim(),
         color: data.color?.trim() || undefined,
+        bodyStyle: data.bodyStyle,
         defaultSlotNumber: data.defaultSlotNumber?.toUpperCase().trim() || undefined,
       });
 
@@ -177,6 +195,7 @@ export const EditCarScreen = () => {
         model: updatedCar.model ?? data.model.trim(),
         plateNumber: updatedCar.plateNumber ?? updatedCar.licensePlate ?? data.plateNumber.toUpperCase().trim(),
         color: updatedCar.color ?? data.color ?? '',
+        bodyStyle: updatedCar.bodyStyle ?? data.bodyStyle ?? '',
         defaultSlotNumber: updatedCar.defaultSlotNumber ?? data.defaultSlotNumber ?? '',
       });
       navigation.goBack();
@@ -327,6 +346,41 @@ export const EditCarScreen = () => {
           )}
         />
         {errors.model && <Text style={styles.errorText}>{errors.model.message}</Text>}
+
+        {/* Body Style */}
+        <Text style={styles.fieldLabel}>Body Style *</Text>
+        <Menu
+          visible={bodyStyleMenuVisible}
+          onDismiss={() => setBodyStyleMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.selectField, errors.bodyStyle && styles.selectFieldError]}
+              onPress={() => setBodyStyleMenuVisible(true)}
+            >
+              <View style={styles.selectFieldLeft}>
+                <MaterialCommunityIcons name="car-sports" size={20} color={colors.outline} />
+                <Text style={[styles.selectFieldText, !selectedBodyStyle && styles.placeholderText]}>
+                  {selectedBodyStyleLabel || 'Select body style'}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.outline} />
+            </TouchableOpacity>
+          }
+        >
+          {BODY_STYLE_OPTIONS.map((option) => (
+            <Menu.Item
+              key={option.value}
+              title={option.label}
+              onPress={() => {
+                setValue('bodyStyle', option.value, { shouldValidate: true });
+                clearErrors('bodyStyle');
+                setBodyStyleMenuVisible(false);
+              }}
+            />
+          ))}
+        </Menu>
+        {errors.bodyStyle && <Text style={styles.errorText}>{errors.bodyStyle.message}</Text>}
 
         <Controller
           control={control}

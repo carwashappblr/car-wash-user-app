@@ -7,6 +7,7 @@ export interface Car {
   licensePlate: string;
   model: string;
   color: string;
+  bodyStyle?: string;
   towerId?: string;
   defaultSlotNumber?: string;
   userId?: string;
@@ -32,6 +33,7 @@ export interface CreateCarPayload {
   plateNumber: string;
   model: string;
   color?: string;
+  bodyStyle?: string;
   defaultSlotNumber?: string;
 }
 
@@ -40,6 +42,7 @@ interface RawCar {
   make?: string;
   model?: string;
   color?: string;
+  bodyStyle?: string;
   towerId?: string;
   plateNumber?: string;
   licensePlate?: string;
@@ -57,6 +60,7 @@ const normalizeCar = (car: RawCar): Car => ({
   licensePlate: car.licensePlate ?? car.plateNumber ?? '',
   model: car.model ?? '',
   color: car.color ?? '',
+  bodyStyle: car.bodyStyle,
   towerId: car.towerId,
   defaultSlotNumber: car.defaultSlotNumber,
   userId: car.userId,
@@ -64,6 +68,7 @@ const normalizeCar = (car: RawCar): Car => ({
   createdAt: car.createdAt ?? '',
   updatedAt: car.updatedAt,
 });
+
 
 export const carService = {
   getCommunities: (): Promise<{ data: Community[] }> =>
