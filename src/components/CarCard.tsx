@@ -36,13 +36,9 @@ export const CarCard: React.FC<CarCardProps> = ({ car, onPress }) => {
   const displayColor = [car.color?.trim(), formattedBodyStyle].filter(Boolean).join(' • ') || 'Not set';
   const slotLabel = car.defaultSlotNumber?.trim() || 'Not set';
 
-<<<<<<< Updated upstream
-=======
   // Dynamically fetch an image based on the car's color, make, model, and body style
   const prompt = `A professional, high quality, cinematic photo of a ${car.color || ''} ${car.make || ''} ${car.model || ''} ${car.bodyStyle || ''} car parked in a premium, brightly lit garage.`;
   const carImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true`;
-
->>>>>>> Stashed changes
   return (
     <Surface
       style={styles.card}
