@@ -15,7 +15,7 @@ import * as yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Button, Menu, Text, TextInput } from 'react-native-paper';
 
-import { Community, Tower, carService } from '../../services/carService';
+import { Community, Tower, carService, CarType } from '../../services/carService';
 import { UserStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -26,6 +26,7 @@ type EditCarFormValues = {
   towerId: string;
   make: string;
   model: string;
+  carType: CarType;
   plateNumber: string;
   color?: string;
   defaultSlotNumber?: string;
@@ -58,12 +59,13 @@ const getErrorMessage = (error: unknown): string => {
   return 'Something went wrong. Please try again.';
 };
 
-const schema: yup.ObjectSchema<EditCarFormValues> = yup.object({
+const schema: any = yup.object({
   communityId: yup.string().trim().required('Community is required'),
   towerId: yup.string().trim().required('Tower is required'),
   make: yup.string().trim().required('Car make is required'),
   plateNumber: yup.string().trim().min(2, 'Enter a valid plate').required('Plate number is required'),
   model: yup.string().trim().required('Car model is required'),
+  carType: yup.string().oneOf(['HATCHBACK', 'SEDAN', 'SUV']).required('Car type is required'),
   color: yup.string().trim().optional(),
   defaultSlotNumber: yup.string().trim().optional(),
 }).required();
@@ -94,6 +96,7 @@ export const EditCarScreen = () => {
       towerId: '',
       make: '',
       model: '',
+      carType: 'HATCHBACK',
       plateNumber: '',
       color: '',
       defaultSlotNumber: '',
@@ -103,6 +106,7 @@ export const EditCarScreen = () => {
   const selectedColor = watch('color') ?? '';
   const selectedCommunityId = watch('communityId');
   const selectedTowerId = watch('towerId');
+  const selectedCarType = watch('carType');
   const selectedCommunity = useMemo(
     () => communities.find((community) => community.id === selectedCommunityId) ?? null,
     [communities, selectedCommunityId]
@@ -138,6 +142,7 @@ export const EditCarScreen = () => {
           towerId: car.towerId ?? '',
           make: car.make ?? '',
           model: car.model ?? '',
+          carType: car.carType ?? 'HATCHBACK',
           plateNumber: car.plateNumber ?? car.licensePlate ?? '',
           color: car.color ?? '',
           defaultSlotNumber: car.defaultSlotNumber ?? '',
@@ -161,6 +166,7 @@ export const EditCarScreen = () => {
         towerId: data.towerId,
         make: data.make.trim(),
         model: data.model.trim(),
+        carType: data.carType,
         plateNumber: data.plateNumber.toUpperCase().trim(),
         color: data.color?.trim() || undefined,
         defaultSlotNumber: data.defaultSlotNumber?.toUpperCase().trim() || undefined,
@@ -176,6 +182,7 @@ export const EditCarScreen = () => {
         towerId: updatedCar.towerId ?? data.towerId,
         make: updatedCar.make ?? data.make.trim(),
         model: updatedCar.model ?? data.model.trim(),
+        carType: updatedCar.carType ?? data.carType,
         plateNumber: updatedCar.plateNumber ?? updatedCar.licensePlate ?? data.plateNumber.toUpperCase().trim(),
         color: updatedCar.color ?? data.color ?? '',
         defaultSlotNumber: updatedCar.defaultSlotNumber ?? data.defaultSlotNumber ?? '',
@@ -290,6 +297,41 @@ export const EditCarScreen = () => {
           ))}
         </Menu>
         {errors.towerId && <Text style={styles.errorText}>{errors.towerId.message}</Text>}
+
+        {/* Car Type Selector */}
+        <Text style={styles.fieldLabel}>Car Type *</Text>
+        <View style={styles.carTypeGrid}>
+          {(['HATCHBACK', 'SEDAN', 'SUV'] as const).map((type) => {
+            const isSelected = selectedCarType === type;
+            const iconName = type === 'HATCHBACK' ? 'car-hatchback' : type === 'SEDAN' ? 'car-sports' : 'car-suv';
+            return (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.carTypeChip,
+                  isSelected && styles.carTypeChipSelected,
+                ]}
+                onPress={() => setValue('carType', type, { shouldValidate: true })}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name={iconName as any}
+                  size={20}
+                  color={isSelected ? '#FFFFFF' : colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.carTypeChipText,
+                    { color: isSelected ? '#FFFFFF' : colors.onSurface },
+                  ]}
+                >
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {errors.carType && <Text style={styles.errorText}>{errors.carType.message}</Text>}
 
         <Controller
           control={control}
@@ -516,6 +558,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 4,
+  },
+  carTypeGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  carTypeChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
+    gap: 8,
+  },
+  carTypeChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  carTypeChipText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   colorLabel: {
     fontSize: 14,

@@ -1,5 +1,7 @@
 import { apiClient } from '../api/client';
 
+export type CarType = 'HATCHBACK' | 'SEDAN' | 'SUV';
+
 export interface Car {
   id: string;
   make?: string;
@@ -7,6 +9,7 @@ export interface Car {
   licensePlate: string;
   model: string;
   color: string;
+  carType: CarType;
   towerId?: string;
   defaultSlotNumber?: string;
   userId?: string;
@@ -31,6 +34,7 @@ export interface CreateCarPayload {
   make: string;
   plateNumber: string;
   model: string;
+  carType: CarType;
   color?: string;
   defaultSlotNumber?: string;
 }
@@ -40,6 +44,7 @@ interface RawCar {
   make?: string;
   model?: string;
   color?: string;
+  carType?: CarType;
   towerId?: string;
   plateNumber?: string;
   licensePlate?: string;
@@ -57,6 +62,7 @@ const normalizeCar = (car: RawCar): Car => ({
   licensePlate: car.licensePlate ?? car.plateNumber ?? '',
   model: car.model ?? '',
   color: car.color ?? '',
+  carType: car.carType ?? 'HATCHBACK',
   towerId: car.towerId,
   defaultSlotNumber: car.defaultSlotNumber,
   userId: car.userId,

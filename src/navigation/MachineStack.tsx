@@ -51,7 +51,7 @@ const MachineTabs = () => {
       })}
     >
       <Tab.Screen
-        name="Home"
+        name="Dashboard"
         component={MachineDashboardScreen}
         options={{ title: 'Tasks', tabBarLabel: 'Tasks' }}
       />
