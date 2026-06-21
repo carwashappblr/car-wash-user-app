@@ -1,7 +1,13 @@
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import React, { createContext, useState, useEffect, useRef, ReactNode, useContext } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { storage } from '../utils/storage';
 import { apiClient, setLogoutCallback } from '../api/client';
+import {
+  registerForPushNotifications,
+  registerDeviceOnBackend,
+  removeDeviceFromBackend,
+  setupNotificationChannel,
+} from '../services/notificationService';
 
 // Backend emits 'WORKER' for machine role (Role.WORKER in Prisma enum)
 // We keep 'WORKER' as the canonical role string to match the JWT
@@ -57,9 +63,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     token: null,
     role: null,
   });
+  const pushTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setLogoutCallback(logout);
+    setupNotificationChannel();
     bootstrapAsync();
   }, []);
 
@@ -102,6 +110,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           type: 'user',
         };
         setState({ user: profileUser, isLoading: false, token: accessToken, role });
+
+        // Register for push notifications on existing session
+        registerForPushNotifications().then((pushToken) => {
+          if (pushToken) {
+            pushTokenRef.current = pushToken;
+            registerDeviceOnBackend(pushToken);
+          }
+        });
+
         return;
       }
     } catch (e) {
@@ -130,6 +147,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       setState({ user, token: accessToken, isLoading: false, role: decoded.role });
+
+      // Register for push notifications after login
+      registerForPushNotifications().then((pushToken) => {
+        if (pushToken) {
+          pushTokenRef.current = pushToken;
+          registerDeviceOnBackend(pushToken);
+        }
+      });
     } catch (e) {
       setState((prev) => ({ ...prev, isLoading: false }));
       throw e;
@@ -185,6 +210,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Remove device token from backend before clearing auth
+    if (pushTokenRef.current) {
+      await removeDeviceFromBackend(pushTokenRef.current).catch(() => {});
+      pushTokenRef.current = null;
+    }
     await storage.removeTokens();
     setState({ user: null, token: null, isLoading: false, role: null });
   };
