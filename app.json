@@ -32,11 +32,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.carwashuserapp",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.anonymous.carwashuserapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bb8dc0d3-820d-4041-8506-58cc0287b440"
+      }
     }
   }
 }
