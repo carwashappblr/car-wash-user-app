@@ -48,10 +48,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    // Get the Expo push token (routed via Expo's push service to FCM/APNs)
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
-    });
+    // Get the Expo push token (Expo automatically reads the projectId from app.json)
+    const tokenData = await Notifications.getExpoPushTokenAsync();
     console.log('[Notifications] Expo push token:', tokenData.data);
     return tokenData.data;
   } catch (error) {
